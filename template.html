@@ -1,0 +1,1250 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BDR CRM Hygiene</title>
+<meta name="robots" content="noindex,nofollow">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+:root {
+  color-scheme: light;
+  --page: #f3f4f8; --surface: #ffffff; --ink: #0b0b0b; --ink-2: #4a4a55; --muted: #85858f;
+  --grid: #e6e6ec; --axis: #c9c9d2; --ring: rgba(20,24,60,0.08); --shadow: 0 1px 2px rgba(20,24,60,.05), 0 4px 16px rgba(20,24,60,.05);
+  --chip: #eff0f4; --accent: #2a78d6;
+  --good: #0ca30c; --warn: #fab219; --serious: #ec835a; --critical: #d03b3b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme="light"])) {
+    color-scheme: dark;
+    --page: #0e0f13; --surface: #181a20; --ink: #f0efec; --ink-2: #c3c2cc; --muted: #8b8b96;
+    --grid: #292b33; --axis: #3a3c45; --ring: rgba(255,255,255,0.07); --shadow: 0 1px 2px rgba(0,0,0,.4);
+    --chip: #23252d; --accent: #3987e5;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --page: #0e0f13; --surface: #181a20; --ink: #f0efec; --ink-2: #c3c2cc; --muted: #8b8b96;
+  --grid: #292b33; --axis: #3a3c45; --ring: rgba(255,255,255,0.07); --shadow: 0 1px 2px rgba(0,0,0,.4);
+  --chip: #23252d; --accent: #3987e5;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--page); color: var(--ink); font: 14px/1.45 Inter, system-ui, -apple-system, "Segoe UI", sans-serif; }
+
+/* hero */
+.hero { position: relative; overflow: hidden; color: #fff; padding: 28px 24px 30px;
+  background: radial-gradient(1200px 400px at 85% -40%, rgba(27,175,122,.55), transparent 60%),
+              radial-gradient(900px 380px at 10% 140%, rgba(98,80,214,.55), transparent 60%),
+              linear-gradient(115deg, #0d1840 0%, #15306f 45%, #1c5cab 100%); }
+.hero-inner { max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; align-items: flex-end; }
+.eyebrow { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; opacity: .75; font-weight: 600; }
+.hero h1 { font-size: 28px; margin: 4px 0 6px; font-weight: 700; letter-spacing: -.01em; }
+.hero .meta { font-size: 13px; opacity: .85; }
+.rules { display: flex; flex-wrap: wrap; gap: 8px; }
+.rule { background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); border-radius: 99px; padding: 5px 12px; font-size: 12px; backdrop-filter: blur(4px); }
+.rule b { font-weight: 600; }
+.banner { background: var(--warn); color: #0b0b0b; padding: 8px 24px; font-size: 13px; font-weight: 600; text-align: center; }
+
+/* filters */
+.filters-wrap { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--page) 88%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--ring); }
+.filters { max-width: 1400px; margin: 0 auto; display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 12px 24px; }
+.filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); font-weight: 500; }
+select, button { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 8px; padding: 6px 10px; }
+button { cursor: pointer; }
+button:hover { border-color: var(--ink-2); }
+
+main { padding: 20px 24px 48px; max-width: 1400px; margin: 0 auto; }
+.sec { display: flex; align-items: center; gap: 10px; margin: 28px 0 12px; }
+.sec h2 { font-size: 16px; margin: 0; font-weight: 650; letter-spacing: -.005em; }
+.sec .dot { width: 10px; height: 10px; border-radius: 3px; background: var(--c); }
+.sec .line { flex: 1; height: 1px; background: var(--grid); }
+
+/* KPI tiles */
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+.kpi { position: relative; background: var(--surface); border: 1px solid var(--ring); border-radius: 14px; padding: 16px 16px 10px; box-shadow: var(--shadow); overflow: hidden; }
+.kpi::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 4px; background: var(--c); }
+.kpi .top { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.kpi .label { font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.kpi .value { font-size: 30px; font-weight: 700; margin-top: 4px; letter-spacing: -.02em; }
+.kpi .note { font-size: 12px; color: var(--muted); }
+.kpi .spark { display: block; width: 100%; height: 36px; margin-top: 6px; }
+
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.g3 { grid-template-columns: 1.4fr 1fr 1.4fr; }
+@media (max-width: 1000px) { .g3 { grid-template-columns: 1fr 1fr; } .g3 > :first-child { grid-column: 1 / -1; } }
+@media (max-width: 900px) { .g2, .g3 { grid-template-columns: 1fr; } .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 520px) { .hero, main, .filters { padding-left: 16px; padding-right: 16px; } .kpi .value { font-size: 24px; } }
+
+.card { background: var(--surface); border: 1px solid var(--ring); border-radius: 14px; padding: 18px; min-width: 0; box-shadow: var(--shadow); }
+.card h3 { font-size: 14px; margin: 0 0 2px; font-weight: 600; }
+.card .desc { margin: 0 0 14px; color: var(--muted); font-size: 12px; }
+.card .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; flex-wrap: wrap; }
+.chart { position: relative; height: 250px; }
+.chart.sm { height: 220px; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink-2); margin-top: 10px; align-items: center; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.gradlegend { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--muted); margin-top: 12px; }
+.gradlegend .bar { width: 160px; height: 8px; border-radius: 99px; }
+
+/* donut centre */
+.donut { position: relative; height: 200px; }
+.donut .centre { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; pointer-events: none; }
+.donut .centre b { font-size: 26px; font-weight: 700; }
+.donut .centre span { font-size: 12px; color: var(--muted); }
+
+/* heatmaps */
+.hm-scroll { overflow-x: auto; padding-bottom: 4px; }
+.hm { display: grid; gap: 3px; font-size: 12px; }
+.hm .rh { position: sticky; left: 0; z-index: 1; background: var(--surface); padding-right: 12px; display: flex; align-items: center; color: var(--ink-2); font-weight: 500; white-space: nowrap; }
+.hm .rh.total { font-weight: 650; color: var(--ink); }
+.hm .ch { color: var(--muted); font-size: 11px; font-weight: 500; line-height: 1.25; text-align: center; padding: 2px 2px 6px; white-space: normal; display: flex; align-items: flex-end; justify-content: center; }
+.hm .ch.click { cursor: pointer; } .hm .ch.click:hover { color: var(--ink); }
+.hm .ch.bh { color: var(--ink); box-shadow: inset 0 -2px 0 var(--accent); }
+.hm .ch.sort { color: var(--ink); }
+.hm .c { min-height: 34px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-variant-numeric: tabular-nums; font-weight: 600; transition: box-shadow .1s, transform .1s; }
+.hm .c.zero { background: var(--chip); color: var(--muted); font-weight: 400; }
+.hm .c.empty { background: repeating-linear-gradient(45deg, var(--chip) 0 4px, transparent 4px 8px); color: var(--muted); font-weight: 400; }
+.hm .c.plain { background: transparent; color: var(--ink); font-weight: 500; }
+.hm .c.click { cursor: pointer; }
+.hm .c:hover { box-shadow: 0 0 0 2px var(--ink); position: relative; z-index: 2; }
+.hm .c.sel { box-shadow: 0 0 0 2px var(--ink), 0 0 0 4px var(--surface); }
+.hm.compact .c { min-height: 22px; border-radius: 4px; }
+.hm .sep { grid-column: 1 / -1; height: 4px; }
+
+.kpis.k5 { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+@media (max-width: 1100px) { .kpis.k5 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 900px) { .kpis.k5 { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+/* view tabs (bottom) */
+[hidden] { display: none !important; }
+body { padding-bottom: 84px; }
+.viewtabs { position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%); z-index: 40; display: flex; gap: 4px; padding: 5px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent); backdrop-filter: blur(10px); border: 1px solid var(--ring); border-radius: 14px;
+  box-shadow: 0 10px 30px rgba(10,14,40,.18), 0 2px 6px rgba(10,14,40,.08); }
+.viewtabs button { border: 0; background: transparent; display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; border-radius: 10px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.viewtabs button:hover { color: var(--ink); border: 0; background: var(--chip); }
+.viewtabs button[aria-selected="true"] { background: linear-gradient(115deg, #15306f, #1c5cab); color: #fff; box-shadow: 0 4px 12px rgba(28,92,171,.35); }
+.viewtabs svg { width: 16px; height: 16px; }
+.viewtabs .cnt { font-size: 11px; font-weight: 700; padding: 1px 7px; border-radius: 99px; background: var(--critical); color: #fff; }
+.viewtabs button[aria-selected="true"] .cnt { background: #fff; color: var(--critical); }
+
+/* theme switch */
+.theme { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: rgba(255,255,255,.12); border: 1px solid rgba(255,255,255,.18); }
+.theme button { border: 0; background: transparent; color: #fff; opacity: .75; padding: 5px 11px; border-radius: 7px; font-size: 12px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+.theme button:hover { opacity: 1; border: 0; }
+.theme button[aria-pressed="true"] { background: #fff; color: #0d1840; opacity: 1; }
+.theme svg { width: 14px; height: 14px; }
+.hero-side { display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+@media (max-width: 760px) { .hero-side { align-items: flex-start; } .filters-wrap { position: static; } }
+input[type="date"] { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--axis); border-radius: 8px; padding: 5px 8px; }
+.daterange { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.daterange .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.daterange .dash { color: var(--muted); }
+.daterange .hint { font-weight: 400; color: var(--muted); }
+
+/* multi-select */
+.ms { position: relative; display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--ink-2); font-weight: 500; }
+.ms-btn { min-width: 170px; text-align: left; display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; font-weight: 400; }
+.ms-btn::after { content: ""; width: 7px; height: 7px; border-right: 1.5px solid var(--ink-2); border-bottom: 1.5px solid var(--ink-2); transform: rotate(45deg) translateY(-2px); }
+.ms-btn.active { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.ms-pop { position: absolute; top: 100%; left: 0; margin-top: 6px; z-index: 30; background: var(--surface); border: 1px solid var(--ring); border-radius: 12px; box-shadow: 0 10px 32px rgba(10,14,40,.18); padding: 6px; min-width: 250px; max-height: 360px; overflow: auto; }
+.ms-acts { display: flex; gap: 6px; padding: 4px 4px 8px; border-bottom: 1px solid var(--grid); margin-bottom: 4px; }
+.ms-acts button { font-size: 12px; padding: 3px 10px; }
+.filters label.ms-opt, .ms-opt { display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 7px; cursor: pointer; color: var(--ink); font-weight: 400; font-size: 13px; }
+.ms-opt:hover { background: var(--chip); }
+.ms-opt input { accent-color: var(--accent); margin: 0; }
+.ms-opt .ms-n { margin-left: auto; color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.ms-opt .only { display: none; font-size: 11px; color: var(--accent); margin-left: 6px; }
+.ms-opt:hover .only { display: inline; }
+
+/* tables */
+.tablewrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--grid); white-space: nowrap; }
+th { font-weight: 600; color: var(--ink-2); font-size: 12px; position: sticky; top: 0; background: var(--surface); }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+tbody tr:hover { background: var(--chip); }
+a { color: var(--accent); text-decoration: none; font-weight: 500; }
+a:hover { text-decoration: underline; }
+.scroll { max-height: 440px; overflow: auto; }
+.empty-msg { color: var(--muted); padding: 18px 4px; }
+.selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 8px; font-size: 13px; }
+.pill { display: inline-flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 99px; padding: 4px 12px; font-weight: 500; }
+.pill .sw { width: 8px; height: 8px; border-radius: 50%; }
+.seg { display: inline-flex; background: var(--chip); border-radius: 9px; padding: 3px; gap: 2px; }
+.seg button { border: 0; background: transparent; padding: 4px 12px; border-radius: 7px; font-size: 12px; font-weight: 500; color: var(--ink-2); }
+.seg button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+.badge { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--chip); color: var(--ink); white-space: nowrap; }
+.badge::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--dot); }
+.b-good { --dot: var(--good); } .b-critical { --dot: var(--critical); } .b-warn { --dot: var(--warn); }
+
+.tip { position: fixed; z-index: 50; pointer-events: none; background: #111318; color: #fff; font-size: 12px; line-height: 1.4; padding: 8px 10px; border-radius: 8px; max-width: 280px; box-shadow: 0 6px 24px rgba(0,0,0,.25); opacity: 0; transition: opacity .08s; }
+.tip b { font-weight: 600; }
+</style>
+</head>
+<body>
+<div id="banner"></div>
+<header class="hero">
+  <div class="hero-inner">
+    <div>
+      <div class="eyebrow">Disprz · Revenue Operations</div>
+      <h1>BDR CRM Hygiene</h1>
+      <div class="meta" id="meta"></div>
+    </div>
+    <div class="hero-side">
+    <div class="theme" id="theme" role="group" aria-label="Colour theme">
+      <button type="button" data-t="light" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>Light</button>
+      <button type="button" data-t="system" aria-pressed="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>System</button>
+      <button type="button" data-t="dark" aria-pressed="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>Dark</button>
+    </div>
+    <div class="rules">
+      <span class="rule"><b>Clock</b> Mon–Fri 07:30–20:30 IST</span>
+      <span class="rule"><b>Touch</b> outbound call or 1:1 email by the owner</span>
+      <span class="rule"><b>Target</b> first touch ≤ 1 business hour</span>
+    </div>
+    </div>
+  </div>
+</header>
+<div class="filters-wrap"><div class="filters">
+  <div class="ms" id="f-bdr" data-view="contacts"></div>
+  <div class="ms" id="f-downer" data-view="deals"></div>
+  <div class="ms" id="f-dspoc" data-view="deals"></div>
+  <div class="ms" id="f-dchn" data-view="deals"></div>
+  <div class="ms" id="f-dorig" data-view="deals"></div>
+  <div class="daterange">
+    <span>Date range <span class="hint" id="date-hint" title="Contacts are filtered by the date they were assigned; calls and emails by the date they happened">(assigned / activity date)</span></span>
+    <div class="row">
+      <select id="f-range">
+        <option value="all">All data</option><option value="today">Today</option><option value="yesterday">Yesterday</option>
+        <option value="7">Last 7 days</option><option value="30">Last 30 days</option><option value="this_month">This month</option>
+        <option value="last_month">Last month</option><option value="90">Last 90 days</option><option value="custom">Custom</option>
+      </select>
+      <input type="date" id="f-from" aria-label="From date"><span class="dash">–</span><input type="date" id="f-to" aria-label="To date">
+    </div>
+  </div>
+  <div class="ms" id="f-chn" data-view="contacts"></div>
+  <div class="ms" id="f-src" data-view="contacts"></div>
+  <button id="f-reset" type="button">Reset</button>
+</div></div>
+
+<main>
+<div id="view-contacts">
+  <div class="sec" style="--c:#eb6834;margin-top:6px"><span class="dot"></span><h2>Hygiene checks</h2><span class="line"></span></div>
+  <div class="card">
+    <p class="desc" style="margin-bottom:12px">Records to fix now, by BDR. Darker means more records, shaded within each column. Click a cell to list those records, or a column header for the whole team. These checks show the current state of contacts assigned in the selected date range; pick "All data" to see every open issue. Demo checks live in the Deals tab.</p>
+    <div class="hm-scroll"><div id="hm-hyg"></div></div>
+    <div class="selbar" id="hyg-sel"></div>
+    <div class="tablewrap scroll"><table id="t-check"></table></div>
+  </div>
+
+
+  <div class="sec" style="--c:#e34948"><span class="dot"></span><h2 id="dq-title">Disqualified without adequate touches</h2><span class="line"></span></div>
+  <p class="desc" id="dq-rule" style="margin:-4px 0 12px;color:var(--muted);font-size:12px"></p>
+  <div class="card">
+    <div class="head"><div><h3>Contacts closed out, by BDR</h3><p class="desc">Each bar is a BDR's contacts set to this status in the date range, split into adequately worked and not. The figure at the end is the share closed without adequate touches.</p></div>
+      <div class="seg" id="dqs-seg"><button type="button" data-v="Disqualified" aria-pressed="true">Disqualified</button><button type="button" data-v="Not Interested" aria-pressed="false">Not Interested</button><button type="button" data-v="No Response" aria-pressed="false">No Response</button><button type="button" data-v="all" aria-pressed="false">All three</button></div></div>
+    <section class="kpis" id="dqs-kpis" style="margin-bottom:16px"></section>
+    <div class="grid g2">
+      <div><div class="chart" id="dqs-bdr-box"><canvas id="c-dqs-bdr"></canvas></div><div class="legend" id="lg-dqs-bdr"></div></div>
+      <div><h3 style="font-size:13px;margin:0 0 2px">Touches before the status was set</h3><p class="desc" style="margin-bottom:8px">All contacts closed out with this status. Bars left of the dashed line fall short of the 5-touch minimum.</p>
+        <div class="chart sm"><canvas id="c-dqs-dist"></canvas></div><div class="legend" id="lg-dqs-dist"></div></div>
+    </div>
+    <div class="selbar" id="dqs-sel"></div>
+    <div class="tablewrap scroll"><table id="t-dqs"></table></div>
+  </div>
+
+  <div class="sec" style="--c:#2a78d6"><span class="dot"></span><h2>Headline numbers</h2><span class="line"></span></div>
+  <section class="kpis" id="kpis"></section>
+
+  <div class="sec" style="--c:#2a78d6"><span class="dot"></span><h2>Speed to first touch</h2><span class="line"></span></div>
+  <div class="grid g3">
+    <div class="card"><h3>Time to first touch</h3><p class="desc">Assigned contacts by business hours (BH) from assignment to first touch</p>
+      <div class="chart sm"><canvas id="c-ft"></canvas></div>
+      <div class="legend" id="lg-ft"></div></div>
+    <div class="card"><h3>First touch channel</h3><p class="desc">How BDRs open the conversation</p>
+      <div class="donut"><canvas id="c-ch"></canvas><div class="centre"><b id="ch-total"></b><span>first touches</span></div></div>
+      <div class="legend" id="lg-ch" style="justify-content:center"></div></div>
+    <div class="card"><h3>Median time to first touch by week</h3><p class="desc">Team median by week of assignment, against the 1 BH target</p>
+      <div class="chart sm"><canvas id="c-trend"></canvas></div>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Team median</span><span><i style="background:transparent;border-top:2px dashed var(--muted);height:0;border-radius:0;width:14px"></i>1 BH target</span></div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="head"><div><h3>Speed heatmap: BDR × week</h3><p class="desc">Median business hours to first touch for contacts assigned that week. Blue is within target, red is slower. Hover a cell for counts.</p></div></div>
+    <div class="hm-scroll"><div id="hm-speed"></div></div>
+    <div id="lg-speed"></div>
+  </div>
+
+  <div class="sec" style="--c:#6250d6"><span class="dot"></span><h2>BDR scorecard</h2><span class="line"></span></div>
+  <div class="card">
+    <p class="desc" style="margin-bottom:12px">Each cell is shaded against the team: blue is better than the team median, red is worse. Click a column header to sort.</p>
+    <div class="hm-scroll"><div id="hm-score"></div></div>
+    <div id="lg-score"></div>
+  </div>
+
+  <div class="sec" style="--c:#1baf7a"><span class="dot"></span><h2>By channel &amp; source</h2><span class="line"></span></div>
+  <div class="card">
+    <div class="head"><div><h3>How each channel is worked</h3><p class="desc">Contacts assigned in the selected dates, grouped by the contact's Channel_ or Disprz Original Source. Shaded against the team: blue is better, red is worse. Click a row to filter the whole dashboard to it.</p></div>
+      <div class="seg" id="seg-seg"><button type="button" data-v="chn" aria-pressed="true">Channel_</button><button type="button" data-v="src" aria-pressed="false">Original source</button></div></div>
+    <div class="hm-scroll"><div id="hm-seg"></div></div>
+  </div>
+
+  <div class="sec" style="--c:#1baf7a"><span class="dot"></span><h2>Coverage &amp; persistence</h2><span class="line"></span></div>
+  <div class="grid g2">
+    <div class="card"><h3>Untouched contacts by age</h3><p class="desc">Contacts with no touch yet, by business days since assignment</p><div class="chart"><canvas id="c-aging"></canvas></div></div>
+    <div class="card"><h3>Where outreach stops</h3><p class="desc">Touched contacts by total touches so far</p><div class="chart"><canvas id="c-drop"></canvas></div></div>
+  </div>
+
+  <div class="sec" style="--c:#e87ba4"><span class="dot"></span><h2>Call metrics by BDR</h2><span class="line"></span></div>
+  <p class="desc" id="call-rule" style="margin:-4px 0 12px;color:var(--muted);font-size:12px"></p>
+  <section class="kpis" id="call-kpis"></section>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>Total vs connected calls by BDR</h3><p class="desc">Connect rate shown at the end of each row; sorted by connect rate</p>
+      <div class="chart" id="tvc-box"><canvas id="c-tvc"></canvas></div><div class="legend" id="lg-tvc"></div></div>
+    <div class="card"><h3>Why calls count as connected</h3><p class="desc" id="talk-desc"></p><div class="chart" id="talk-box"><canvas id="c-talk"></canvas></div>
+      <div class="legend" id="lg-talk"></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>Total vs connected calls by week</h3><p class="desc">Outbound calls by week of the call</p><div class="chart"><canvas id="c-callwk"></canvas></div>
+      <div class="legend" id="lg-callwk"></div></div>
+    <div class="card"><h3>Connect rate by week</h3><p class="desc">Connected calls ÷ total calls; dashed line is the average for the whole period</p><div class="chart"><canvas id="c-ratewk"></canvas></div>
+      <div class="legend" id="lg-ratewk"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="head"><div><h3>Call metrics table</h3><p class="desc" id="call-desc"></p></div></div>
+    <div class="hm-scroll"><div id="hm-calls"></div></div>
+    <div id="lg-calls"></div>
+  </div>
+
+  <div class="sec" style="--c:#6250d6"><span class="dot"></span><h2>Activity timing &amp; data quality</h2><span class="line"></span></div>
+  <div class="card">
+    <div class="head"><div><h3>When BDRs reach out</h3><p class="desc">Activity by day and hour (IST). Underlined hours fall in the business window.</p></div>
+      <div class="seg" id="act-seg"><button type="button" data-v="calls" aria-pressed="true">Calls</button><button type="button" data-v="emails" aria-pressed="false">Emails</button><button type="button" data-v="both" aria-pressed="false">Both</button></div></div>
+    <div class="hm-scroll"><div id="hm-act"></div></div>
+    <div id="lg-act"></div>
+  </div>
+  <div class="card" style="margin-top:14px"><h3>Data quality</h3><p class="desc">Logging signals that make the numbers less trustworthy. Darker is worse, shaded within each column.</p>
+    <div class="hm-scroll"><div id="hm-dq"></div></div></div>
+</div>
+
+<div id="view-deals" hidden>
+  <div class="sec" style="--c:#1baf7a;margin-top:6px"><span class="dot"></span><h2>Demo funnel: scheduled → done → SQO</h2><span class="line"></span></div>
+  <p class="desc" id="funnel-rule" style="margin:-4px 0 12px;color:var(--muted);font-size:12px"></p>
+  <section class="kpis k5" id="funnel-kpis"></section>
+  <div class="card" style="margin-top:14px">
+    <div class="head"><div><h3 id="fn-title">By deal channel</h3><p class="desc">Volume columns are shaded darker for more; Demo → SQO is shaded against the median (blue better, red worse). Click a row to filter the whole tab to it.</p></div>
+      <div class="seg" id="fn-seg"><button type="button" data-v="chn" aria-pressed="true">Channel</button><button type="button" data-v="orig" aria-pressed="false">Deal origination</button></div></div>
+    <div class="hm-scroll"><div id="hm-funnel"></div></div>
+    <div id="lg-funnel"></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3 id="fn-bars-title">Scheduled, done and SQO</h3><p class="desc">Deal counts per segment, sorted by demos scheduled</p>
+      <div class="chart" id="fn-bars-box"><canvas id="c-fn-bars"></canvas></div><div class="legend" id="lg-fn-bars"></div></div>
+    <div class="card"><h3>SQO pipeline value by deal origination</h3><p class="desc" id="sqo-val-desc"></p>
+      <div class="chart" id="sqo-val-box"><canvas id="c-sqo-val"></canvas></div></div>
+  </div>
+  <div class="grid g2" style="margin-top:14px">
+    <div class="card"><h3>Funnel by week</h3><p class="desc">Demos scheduled (by Proposed Demo Date_), done (by Demo Done Date) and SQO (by SQO date)</p>
+      <div class="chart"><canvas id="c-fn-week"></canvas></div><div class="legend" id="lg-fn-week"></div></div>
+    <div class="card"><h3>Demo → SQO conversion by week</h3><p class="desc">SQOs ÷ demos done in each week; dashed line is the period average</p>
+      <div class="chart"><canvas id="c-fn-conv"></canvas></div><div class="legend" id="lg-fn-conv"></div></div>
+  </div>
+
+  <div class="sec" style="--c:#e34948"><span class="dot"></span><h2>Demo done but not updated</h2><span class="line"></span></div>
+  <p class="desc" id="deal-rule" style="margin:-4px 0 12px;color:var(--muted);font-size:12px"></p>
+  <section class="kpis" id="deal-kpis"></section>
+  <div style="height:14px"></div>
+  <div class="grid g2">
+    <div class="card"><h3>Past demos by deal owner</h3><p class="desc">Deals whose demo date passed more than 48 hours ago: updated vs still Scheduled. Sorted by most not updated.</p>
+      <div class="chart" id="dl-owner-box"><canvas id="c-dl-owner"></canvas></div><div class="legend" id="lg-dl-owner"></div></div>
+    <div class="card"><h3>How long demos have gone un-updated</h3><p class="desc">Deals still Scheduled, by deal owner and days since the demo date. Click a cell to list those deals.</p>
+      <div class="hm-scroll"><div id="hm-dl-age"></div></div><div id="lg-dl-age"></div></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="head"><div><h3>Deals to update</h3><p class="desc" id="dl-list-desc"></p></div>
+      <div class="seg" id="dl-list-seg"><button type="button" data-v="overdue" aria-pressed="true">Not updated</button><button type="button" data-v="upcoming" aria-pressed="false">Upcoming demos</button><button type="button" data-v="all" aria-pressed="false">All in range</button></div></div>
+    <div class="selbar" id="dl-sel"></div>
+    <div class="tablewrap scroll"><table id="t-deals"></table></div>
+  </div>
+
+  <div class="sec" style="--c:#2a78d6"><span class="dot"></span><h2>Demo outcomes</h2><span class="line"></span></div>
+  <div class="grid g2">
+    <div class="card"><h3>Demo Status after the demo date</h3><p class="desc">Past demos (48 hours or more after the demo date) grouped by the Demo Status the owner set</p>
+      <div class="donut" style="height:220px"><canvas id="c-dl-status"></canvas><div class="centre"><b id="dl-status-total"></b><span>past demos</span></div></div>
+      <div class="legend" id="lg-dl-status" style="justify-content:center"></div></div>
+    <div class="card"><h3>Past demos by week</h3><p class="desc">By week of the proposed demo date: updated vs still Scheduled</p>
+      <div class="chart"><canvas id="c-dl-week"></canvas></div><div class="legend" id="lg-dl-week"></div></div>
+  </div>
+</div>
+</main>
+
+<nav class="viewtabs" role="tablist" aria-label="Dashboard view">
+  <button type="button" role="tab" data-view="contacts" aria-selected="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="4"/><path d="M2 21c0-4 3-7 7-7s7 3 7 7"/><path d="M17 4a4 4 0 0 1 0 8M22 21c0-3-1.7-5.4-4-6.5"/></svg>Contacts</button>
+  <button type="button" role="tab" data-view="deals" aria-selected="false"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 13h18"/></svg>Deals<span class="cnt" id="deal-cnt"></span></button>
+</nav>
+<div class="tip" id="tip"></div>
+
+<script>
+window.addEventListener("error", e => {
+  const b = document.getElementById("banner");
+  if (b && !b.dataset.err) { b.dataset.err = 1; b.innerHTML = '<div class="banner" style="background:#d03b3b;color:#fff">Something went wrong drawing the dashboard: ' + String(e.message).replace(/[<>&]/g, "") + (e.lineno ? " (line " + e.lineno + ")" : "") + '. Filters may not update. Please send this message to RevOps.</div>'; }
+});
+const D = /*__DATA__*/null;
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c]));
+const BDR = Object.fromEntries(D.bdrs.map(b => [b.id, b]));
+const ownerName = id => (BDR[id] && BDR[id].name) || "Other owners";
+const fmtDT = s => s ? new Date(s).toLocaleString("en-IN", {timeZone: "Asia/Kolkata", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit"}) : "—";
+const fmtD = s => s ? new Date(s).toLocaleDateString("en-IN", {timeZone: "Asia/Kolkata", day: "2-digit", month: "short"}) : "—";
+const wkShort = w => new Date(w + "T00:00:00").toLocaleDateString("en-IN", {day: "2-digit", month: "short"});
+const pct = (a, b) => b ? Math.round(100 * a / b) + "%" : "—";
+const median = a => { if (!a.length) return null; const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+const num = (x, d = 1) => x == null || isNaN(x) ? "—" : (+x).toFixed(d).replace(/\.0+$/, "");
+const T = D.config.target_bh, B = D.config.breach_bh;
+
+// ---------- colour system ----------
+const isDark = () => { const t = document.documentElement.dataset.theme; return t === "dark" || (t !== "light" && matchMedia("(prefers-color-scheme: dark)").matches); };
+const M = () => isDark() ? "dark" : "light";
+const SLOTS = { light: ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"],
+                dark:  ["#3987e5", "#d95926", "#199e70", "#c98500", "#d55181", "#008300", "#9085e9", "#e66767"] };
+const RAMPS = {
+  blue:  { light: ["#eef5fe", "#cde2fb", "#9ec5f4", "#6da7ec", "#3987e5", "#2a78d6", "#1c5cab", "#104281"],
+           dark:  ["#1c2533", "#16365e", "#184f95", "#1c5cab", "#2a78d6", "#3987e5", "#6da7ec", "#9ec5f4"] },
+  warm:  { light: ["#fff1e8", "#fdd9c4", "#f9b893", "#f39263", "#eb6834", "#cc4f1e", "#9e3a14"],
+           dark:  ["#2b211c", "#4a2a19", "#71371b", "#a0471f", "#d95926", "#ec835a", "#f6ad8c"] },
+  aqua:  { light: ["#e8f8f1", "#bfeedb", "#8bdfbf", "#4fc99c", "#1baf7a", "#138a60", "#0c6547"],
+           dark:  ["#18261f", "#123d2e", "#135940", "#167655", "#199e70", "#45c495", "#8bdfbf"] },
+  // diverging: index 0 = worst (red) ... 3 = neutral ... 6 = best (blue)
+  div:   { light: ["#c03a39", "#e66767", "#f5c0bf", "#efeff3", "#bcd6f6", "#6da7ec", "#2a78d6"],
+           dark:  ["#e66767", "#a83a3a", "#562a2b", "#2a2c33", "#1b3a63", "#256abf", "#3987e5"] },
+};
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const rgb2hex = a => "#" + a.map(x => Math.round(x).toString(16).padStart(2, "0")).join("");
+function rampAt(stops, t) {
+  t = Math.max(0, Math.min(1, isNaN(t) ? 0 : t));
+  const n = stops.length - 1, i = Math.min(n - 1, Math.floor(t * n)), f = t * n - i;
+  const a = hex2rgb(stops[i]), b = hex2rgb(stops[i + 1]);
+  return rgb2hex(a.map((x, k) => x + (b[k] - x) * f));
+}
+const seq = (name, t) => rampAt(RAMPS[name][M()], t);
+const div = t => rampAt(RAMPS.div[M()], (t + 1) / 2); // t in [-1 worst, +1 best]
+function inkOn(hex) {
+  const L = hex2rgb(hex).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); });
+  const lum = 0.2126 * L[0] + 0.7152 * L[1] + 0.0722 * L[2];
+  return lum > 0.22 ? "#0b0b0b" : "#ffffff";
+}
+const slot = i => SLOTS[M()][i];
+const cssv = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+// time-to-first-touch -> diverging position (target = boundary between blue and red)
+const speedT = v => v <= T ? 0.25 + 0.75 * (1 - v / T) : -Math.min(1, 0.2 + 0.8 * Math.log(v / T) / Math.log(2 * B / T));
+
+function gradLegend(stops, left, right, mid) {
+  return `<div class="gradlegend"><span>${left}</span><span class="bar" style="background:linear-gradient(90deg,${stops.join(",")})"></span><span>${right}</span>${mid ? `<span style="margin-left:8px">${mid}</span>` : ""}</div>`;
+}
+
+// ---------- tooltip ----------
+const tip = $("#tip");
+document.addEventListener("mouseover", e => { const el = e.target.closest("[data-tip]"); if (!el) { tip.style.opacity = 0; return; } tip.innerHTML = el.dataset.tip; tip.style.opacity = 1; });
+document.addEventListener("mousemove", e => { if (tip.style.opacity === "0") return; const w = tip.offsetWidth, h = tip.offsetHeight; let x = e.clientX + 14, y = e.clientY + 14; if (x + w > innerWidth - 8) x = e.clientX - w - 14; if (y + h > innerHeight - 8) y = e.clientY - h - 14; tip.style.left = x + "px"; tip.style.top = y + "px"; });
+
+// ---------- header + filters ----------
+if (D.sample) $("#banner").innerHTML = '<div class="banner">Sample data for layout review only. These are not real contacts or BDRs.</div>';
+$("#meta").textContent = `Refreshed ${fmtDT(D.generated_at)} IST · assignments since ${fmtD(D.window_start)} · ${D.bdrs.length} BDRs`;
+const weeks = [...new Set([...D.contacts.map(c => c.week), ...D.calls.map(c => c[1]), ...D.emails.map(e => e[1])])].sort();
+// ---------- date range ----------
+const allDays = [...D.contacts.map(c => c.aday), ...D.calls.map(c => c[16]), ...D.emails.map(e => e[9]), ...(D.deals || []).map(d => d.demo_date)].filter(Boolean).sort();
+const MIN_DAY = allDays[0] || "", TODAY = new Date(D.generated_at).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+const MAX_DAY = allDays.length && allDays[allDays.length - 1] > TODAY ? allDays[allDays.length - 1] : TODAY;
+const isoAdd = (d, n) => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+const weekOf = d => { const x = new Date(d + "T00:00:00Z"); x.setUTCDate(x.getUTCDate() - ((x.getUTCDay() + 6) % 7)); return x.toISOString().slice(0, 10); };
+function presetRange(p) {
+  const t = TODAY, m = t.slice(0, 7);
+  if (p === "today") return [t, t];
+  if (p === "yesterday") return [isoAdd(t, -1), isoAdd(t, -1)];
+  if (p === "this_month") return [m + "-01", t];
+  if (p === "last_month") { const first = isoAdd(m + "-01", -1).slice(0, 7) + "-01"; return [first, isoAdd(m + "-01", -1)]; }
+  if (/^\d+$/.test(p)) return [isoAdd(t, -(+p - 1)), t];
+  return [MIN_DAY, MAX_DAY];
+}
+["#f-from", "#f-to"].forEach(id => { $(id).min = MIN_DAY; $(id).max = MAX_DAY; });
+function applyPreset(p) { if (p === "custom") return; const [a, b] = presetRange(p); $("#f-from").value = a; $("#f-to").value = b; }
+$("#f-range").addEventListener("change", () => { applyPreset($("#f-range").value); render(); });
+["#f-from", "#f-to"].forEach(id => $(id).addEventListener("change", () => {
+  let a = $("#f-from").value || MIN_DAY, b = $("#f-to").value || MAX_DAY;
+  if (a > b) { if (id === "#f-from") b = a; else a = b; $("#f-from").value = a; $("#f-to").value = b; }
+  $("#f-range").value = "custom"; render();
+}));
+function resetFilters() { $("#f-range").value = "all"; applyPreset("all"); }
+resetFilters();
+try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s) { if (s.r) { $("#f-range").value = s.r; if (s.r === "custom" && s.f && s.t) { $("#f-from").value = s.f; $("#f-to").value = s.t; } else applyPreset(s.r); } } } catch (e) {}
+
+// ---------- theme ----------
+function setTheme(t, save) {
+  if (t === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = t;
+  document.querySelectorAll("#theme button").forEach(b => b.setAttribute("aria-pressed", b.dataset.t === t));
+  if (save) { try { localStorage.setItem("crmh-theme", t); } catch (e) {} }
+}
+document.querySelectorAll("#theme button").forEach(b => b.onclick = () => { setTheme(b.dataset.t, true); render(); });
+try { setTheme(localStorage.getItem("crmh-theme") || "system", false); } catch (e) { setTheme("system", false); }
+$("#f-reset").addEventListener("click", () => { resetFilters(); MS.chn.set(MS.chn.all); MS.src.set(MS.src.all); MS.bdr.set(MS.bdr.all); MS.downer.set(MS.downer.all); MS.dspoc.set(MS.dspoc.all); MS.dchn.set(MS.dchn.all); MS.dorig.set(MS.dorig.all); render(); });
+
+// ---------- channel / source multi-selects ----------
+function optionList(key) {
+  const n = {}; D.contacts.forEach(c => n[c[key]] = (n[c[key]] || 0) + 1);
+  return Object.entries(n).sort((a, b) => (a[0] === "(blank)") - (b[0] === "(blank)") || b[1] - a[1]).map(([v, k]) => ({ v, n: k }));
+}
+function multiSelect(el, label, allWord, options) {
+  const all = options.map(o => o.v);
+  const ms = { sel: new Set(all), all };
+  el.innerHTML = `<span>${label}</span><button type="button" class="ms-btn"><span class="ms-txt"></span></button>
+    <div class="ms-pop" hidden><div class="ms-acts"><button type="button" data-a="all">Select all</button><button type="button" data-a="none">Clear</button></div>
+    ${options.map(o => `<label class="ms-opt"><input type="checkbox" value="${esc(o.v)}"><span>${esc(o.v)}</span><span class="only" data-only="${esc(o.v)}">only</span><span class="ms-n">${o.n}</span></label>`).join("")}</div>`;
+  const btn = el.querySelector(".ms-btn"), pop = el.querySelector(".ms-pop"), boxes = [...el.querySelectorAll("input")];
+  ms.sync = () => {
+    boxes.forEach(b => b.checked = ms.sel.has(b.value));
+    const n = ms.sel.size;
+    el.querySelector(".ms-txt").textContent = n === all.length ? allWord : n === 0 ? "None" : n === 1 ? [...ms.sel][0] : `${n} of ${all.length}`;
+    btn.classList.toggle("active", n !== all.length);
+  };
+  ms.set = vals => { ms.sel = new Set(vals.filter(v => all.includes(v))); ms.sync(); };
+  btn.onclick = e => { e.stopPropagation(); document.querySelectorAll(".ms-pop").forEach(p => { if (p !== pop) p.hidden = true; }); pop.hidden = !pop.hidden; };
+  pop.onclick = e => e.stopPropagation();
+  boxes.forEach(b => b.onchange = () => { b.checked ? ms.sel.add(b.value) : ms.sel.delete(b.value); ms.sync(); render(); });
+  el.querySelectorAll("[data-only]").forEach(o => o.onclick = e => { e.preventDefault(); ms.set([o.dataset.only]); render(); });
+  el.querySelector('[data-a="all"]').onclick = () => { ms.set(all); render(); };
+  el.querySelector('[data-a="none"]').onclick = () => { ms.set([]); render(); };
+  ms.sync();
+  return ms;
+}
+document.addEventListener("click", () => document.querySelectorAll(".ms-pop").forEach(p => p.hidden = true));
+const MS = { chn: multiSelect($("#f-chn"), "Channel_", "All channels", optionList("chn")),
+             src: multiSelect($("#f-src"), "Original source", "All sources", optionList("src")) };
+const bdrCounts = (() => { const n = {}; D.contacts.forEach(c => n[c.owner] = (n[c.owner] || 0) + 1); return n; })();
+MS.bdr = multiSelect($("#f-bdr"), "BDR", "All BDRs", D.bdrs.map(b => ({ v: b.name, n: bdrCounts[b.id] || 0 })));
+try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s && s.bdr) MS.bdr.set(s.bdr); } catch (e) {}
+try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s && s.chn) MS.chn.set(s.chn); if (s && s.src) MS.src.set(s.src); } catch (e) {}
+let SEG = () => true;
+let DATE_OK = () => true;
+const DEALS = D.deals || [];
+const downerOpts = (() => { const n = {}; DEALS.forEach(d => n[d.owner_name] = (n[d.owner_name] || 0) + 1); return Object.entries(n).sort((a, b) => b[1] - a[1]).map(([v, k]) => ({ v, n: k })); })();
+MS.downer = multiSelect($("#f-downer"), "Deal owner", "All deal owners", downerOpts);
+const dealOpts = key => { const n = {}; DEALS.forEach(d => n[d[key]] = (n[d[key]] || 0) + 1); return Object.entries(n).sort((a, b) => (a[0] === "(blank)") - (b[0] === "(blank)") || b[1] - a[1]).map(([v, k]) => ({ v, n: k })); };
+MS.dspoc = multiSelect($("#f-dspoc"), "BD SPOC", "All BD SPOCs", dealOpts("spoc"));
+MS.dchn = multiSelect($("#f-dchn"), "Deal channel", "All channels", dealOpts("chn"));
+MS.dorig = multiSelect($("#f-dorig"), "Deal origination", "All originations", dealOpts("orig"));
+try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s && s.downer) MS.downer.set(s.downer); if (s && s.dchn) MS.dchn.set(s.dchn); if (s && s.dspoc) MS.dspoc.set(s.dspoc); if (s && s.dorig) MS.dorig.set(s.dorig); } catch (e) {}
+
+// ---------- view tabs ----------
+let VIEW = "contacts";
+function setView(v, save) {
+  VIEW = v;
+  $("#view-contacts").hidden = v !== "contacts"; $("#view-deals").hidden = v !== "deals";
+  document.querySelectorAll(".viewtabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.view === v));
+  document.querySelectorAll("[data-view]").forEach(el => { if (!el.closest(".viewtabs")) el.hidden = el.dataset.view !== v; });
+  $("#date-hint").textContent = v === "deals" ? "(demo / done / SQO date)" : "(assigned / activity date)";
+  $("#date-hint").title = v === "deals" ? "Scheduled demos and the not-updated check use Proposed Demo Date_; demos done use Demo Done Date; SQOs use Last Stage Update to Demo - Disprz Sales Pipeline" : "Contacts are filtered by the date they were assigned; calls and emails by the date they happened";
+  if (save) { try { localStorage.setItem("crmh-view", v); history.replaceState(null, "", v === "deals" ? "#deals" : "#"); } catch (e) {} }
+}
+document.querySelectorAll(".viewtabs button").forEach(b => b.onclick = () => { setView(b.dataset.view, true); render(); scrollTo({ top: 0, behavior: "smooth" }); });
+try { setView(location.hash === "#deals" ? "deals" : (localStorage.getItem("crmh-view") || "contacts"), false); } catch (e) { setView("contacts", false); }
+
+function state() {
+  const bAll = MS.bdr.sel.size === MS.bdr.all.length, bIds = new Set(D.bdrs.filter(x => MS.bdr.sel.has(x.name)).map(x => x.id));
+  const b = bAll ? "" : [...bIds].join(","), r = $("#f-range").value, f = $("#f-from").value || MIN_DAY, t = $("#f-to").value || MAX_DAY;
+  const chnAll = MS.chn.sel.size === MS.chn.all.length, srcAll = MS.src.sel.size === MS.src.all.length;
+  SEG = (chn, src) => (chnAll || MS.chn.sel.has(chn)) && (srcAll || MS.src.sel.has(src));
+  try { localStorage.setItem("crmh-filters", JSON.stringify({bdr: bAll ? null : [...MS.bdr.sel], r, f, t, chn: chnAll ? null : [...MS.chn.sel], src: srcAll ? null : [...MS.src.sel], downer: MS.downer && MS.downer.sel.size !== MS.downer.all.length ? [...MS.downer.sel] : null,
+    dchn: MS.dchn && MS.dchn.sel.size !== MS.dchn.all.length ? [...MS.dchn.sel] : null, dorig: MS.dorig && MS.dorig.sel.size !== MS.dorig.all.length ? [...MS.dorig.sel] : null,
+    dspoc: MS.dspoc && MS.dspoc.sel.size !== MS.dspoc.all.length ? [...MS.dspoc.sel] : null})); } catch (e) {}
+  const inD = d => !!d && d >= f && d <= t, wf = weekOf(f);
+  DATE_OK = d => r === "all" || inD(d);
+  const inW = w => w >= wf && w <= t;
+  const ownerOk = o => bAll || bIds.has(o);
+  return {
+    b, ownerOk, f, t, weeks: weeks.filter(inW), bdrs: D.bdrs.filter(x => ownerOk(x.id)),
+    inD, ...(() => { const base = DEALS.filter(d => MS.downer.sel.has(d.owner_name) && MS.dspoc.sel.has(d.spoc) && MS.dchn.sel.has(d.chn) && MS.dorig.sel.has(d.orig));
+      return { deals: base.filter(d => inD(d.demo_date)), dealsDone: base.filter(d => d.done && inD(d.done_date)), dealsSqo: base.filter(d => d.sqo && inD(d.sqo_date)) }; })(),
+    contacts: D.contacts.filter(c => ownerOk(c.owner) && inD(c.aday) && SEG(c.chn, c.src)),
+    calls: D.calls.filter(c => ownerOk(c[0]) && inD(c[16]) && SEG(c[12], c[13])),
+    emails: D.emails.filter(e => ownerOk(e[0]) && inD(e[9]) && SEG(e[7], e[8])),
+  };
+}
+
+// ---------- aggregation ----------
+function agg(contacts, calls, emails) {
+  const touched = contacts.filter(c => c.ft);
+  const validCalls = calls.filter(c => c[10] && !c[9]);
+  const mailed = touched.filter(c => c.emails > 0);
+  const sent = emails.filter(e => !e[4]);
+  const breached = contacts.filter(c => (c.ft && c.ft_bh > B) || (!c.ft && c.age_bh >= B)).length;
+  return {
+    assigned: contacts.length, touched: touched.length, untouched: contacts.length - touched.length,
+    medFt: median(touched.map(c => c.ft_bh)), inTarget: contacts.filter(c => c.ft && c.ft_bh <= T).length, breached,
+    t20: touched.length ? touched.reduce((s, c) => s + c.t20, 0) / touched.length : null,
+    multi: touched.filter(c => c.calls > 0 && c.emails > 0).length,
+    calls: validCalls.length, over30: validCalls.filter(c => c[14] > (D.config.talk_min_s || 30)).length, connected: validCalls.filter(c => c[3]).length, convo: validCalls.filter(c => c[4]).length,
+    outcome: validCalls.filter(c => c[5]).length, notes: validCalls.filter(c => c[6]).length,
+    manual: calls.filter(c => c[7]).length, allCalls: calls.length, backdated: calls.filter(c => c[8]).length, dup: calls.filter(c => c[9]).length,
+    mailed: mailed.length, replied: mailed.filter(c => c.replied).length,
+    sent: sent.length, bounced: sent.filter(e => e[2]).length, group: sent.filter(e => e[3]).length,
+    meetings: contacts.filter(c => c.meeting).length,
+    callFirst: touched.filter(c => c.ft_ch === "call").length, emailFirst: touched.filter(c => c.ft_ch === "email").length,
+  };
+}
+const rate = (a, b) => b ? a / b : null;
+
+// ---------- KPI tiles ----------
+function spark(vals, color) {
+  const w = 200, h = 36, pts = vals.map((v, i) => v == null ? null : [i, v]).filter(Boolean);
+  if (pts.length < 2) return `<svg class="spark"></svg>`;
+  const ys = pts.map(p => p[1]), lo = Math.min(...ys), hi = Math.max(...ys), r = hi - lo || 1, n = vals.length - 1 || 1;
+  const P = pts.map(([i, v]) => [i / n * w, h - 4 - (v - lo) / r * (h - 8)]);
+  const line = P.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + " " + p[1].toFixed(1)).join(" ");
+  const id = "sg" + Math.random().toString(36).slice(2, 8);
+  return `<svg class="spark" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" aria-hidden="true"><defs><linearGradient id="${id}" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="${color}" stop-opacity=".30"/><stop offset="1" stop-color="${color}" stop-opacity="0"/></linearGradient></defs>
+    <path d="${line} L${P.at(-1)[0]} ${h} L${P[0][0]} ${h} Z" fill="url(#${id})"/><path d="${line}" fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+function kpis(st) {
+  const a = agg(st.contacts, st.calls, st.emails);
+  const wk = st.weeks.map(w => agg(st.contacts.filter(c => c.week === w), st.calls.filter(c => c[1] === w), st.emails.filter(e => e[1] === w)));
+  const status = (ok, okText, badText) => `<span class="badge ${ok ? "b-good" : "b-critical"}">${ok ? okText : badText}</span>`;
+  const tiles = [
+    ["Assigned", a.assigned, `${a.untouched} not touched yet`, x => x.assigned, 0],
+    ["Touched within 1 BH", pct(a.inTarget, a.assigned), `${a.inTarget} of ${a.assigned} assigned`, x => rate(x.inTarget, x.assigned), 2],
+    ["Median time to first touch", a.medFt == null ? "—" : num(a.medFt) + " BH", "touched contacts", x => x.medFt, 6, a.medFt == null ? "" : status(a.medFt <= T, "On target", "Above target")],
+    ["SLA breaches", a.breached, `no touch within ${B} BH`, x => x.breached, 7, status(a.breached === 0, "None", pct(a.breached, a.assigned) + " of assigned")],
+    ["Touch coverage", pct(a.touched, a.assigned), "at least one touch", x => rate(x.touched, x.assigned), 1],
+    ["Touches per contact", num(a.t20), "first 20 business days", x => x.t20, 4],
+    ["Multi-channel", pct(a.multi, a.touched), "called and emailed", x => rate(x.multi, x.touched), 3],
+    ["Meetings per 100", a.assigned ? num(100 * a.meetings / a.assigned) : "—", `${a.meetings} contacts with a meeting`, x => x.assigned ? 100 * x.meetings / x.assigned : null, 5],
+  ];
+  $("#kpis").innerHTML = tiles.map(([l, v, n, f, ci, badge]) => `<div class="kpi" style="--c:${slot(ci)}"><div class="top"><span class="label">${l}</span>${badge || ""}</div><div class="value">${v}</div><div class="note">${n}</div>${spark(wk.map(f), slot(ci))}</div>`).join("");
+  return a;
+}
+
+// ---------- Chart.js helpers ----------
+Chart.defaults.font.family = 'Inter, system-ui, -apple-system, "Segoe UI", sans-serif';
+Chart.defaults.font.size = 12;
+const charts = {};
+function mk(id, cfg) { if (charts[id]) charts[id].destroy(); charts[id] = new Chart($(id), cfg); }
+function tipOpts(extra) { return Object.assign({ backgroundColor: "#111318", titleColor: "#fff", bodyColor: "#fff", padding: 10, cornerRadius: 8, displayColors: false, titleFont: { weight: "600" } }, extra || {}); }
+function axes(yTitle) {
+  return {
+    x: { grid: { display: false }, border: { color: cssv("--axis") }, ticks: { color: cssv("--muted") } },
+    y: { beginAtZero: true, grid: { color: cssv("--grid") }, border: { display: false }, ticks: { color: cssv("--muted"), precision: 0 }, title: { display: !!yTitle, text: yTitle, color: cssv("--muted") } },
+  };
+}
+function barChart(id, labels, values, colors, yTitle, tipLabel) {
+  mk(id, { type: "bar", data: { labels, datasets: [{ data: values, backgroundColor: colors, hoverBackgroundColor: colors, borderRadius: { topLeft: 6, topRight: 6 }, borderSkipped: "bottom", maxBarThickness: 52 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, plugins: { legend: { display: false }, tooltip: tipOpts({ callbacks: { label: tipLabel } }) }, scales: axes(yTitle) } });
+}
+
+// ---------- speed section ----------
+function speedCharts(st, a) {
+  const c = st.contacts;
+  const bins = [["≤ 1", x => x <= 1, 1], ["1–4", x => x > 1 && x <= 4, 4], ["4–13", x => x > 4 && x <= 13, 13], ["13–26", x => x > 13 && x <= 26, 26], ["> 26", x => x > 26, 60]];
+  const vals = bins.map(([, f]) => c.filter(r => r.ft && f(r.ft_bh)).length).concat(a.untouched);
+  const cols = bins.map(([, , rep]) => div(speedT(rep === 1 ? 0.3 : rep))).concat(cssv("--axis"));
+  barChart("#c-ft", bins.map(b => b[0] + " BH").concat("Not yet"), vals, cols, "Contacts", ctx => `${ctx.parsed.y} contacts (${pct(ctx.parsed.y, a.assigned)})`);
+  $("#lg-ft").innerHTML = `<span><i style="background:${div(0.85)}"></i>Within target</span><span><i style="background:${div(-0.5)}"></i>Slower than target</span><span><i style="background:${cssv("--axis")}"></i>No touch yet</span>`;
+
+  const chCols = [slot(0), slot(1)];
+  $("#ch-total").textContent = a.touched;
+  mk("#c-ch", { type: "doughnut", data: { labels: ["Call first", "Email first"], datasets: [{ data: [a.callFirst, a.emailFirst], backgroundColor: chCols, hoverBackgroundColor: chCols, borderColor: cssv("--surface"), borderWidth: 3, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: "70%", animation: { duration: 300 }, plugins: { legend: { display: false }, tooltip: tipOpts({ callbacks: { label: ctx => `${ctx.label}: ${ctx.parsed} (${pct(ctx.parsed, a.touched)})` } }) } } });
+  $("#lg-ch").innerHTML = `<span><i style="background:${chCols[0]}"></i>Call first · ${pct(a.callFirst, a.touched)}</span><span><i style="background:${chCols[1]}"></i>Email first · ${pct(a.emailFirst, a.touched)}</span>`;
+
+  const med = st.weeks.map(w => { const m = median(c.filter(r => r.week === w && r.ft).map(r => r.ft_bh)); return m == null ? null : +m.toFixed(2); });
+  const ctx = $("#c-trend").getContext("2d"), g = ctx.createLinearGradient(0, 0, 0, 220);
+  g.addColorStop(0, slot(0) + "55"); g.addColorStop(1, slot(0) + "00");
+  const ax = axes("Business hours"); ax.y.ticks.precision = undefined;
+  mk("#c-trend", { type: "line", data: { labels: st.weeks.map(wkShort), datasets: [
+      { label: "Median", data: med, borderColor: slot(0), backgroundColor: g, fill: true, borderWidth: 2.5, tension: 0.35, pointRadius: 3.5, pointHoverRadius: 6, pointBackgroundColor: med.map(v => v == null ? "transparent" : div(speedT(v))), pointBorderColor: cssv("--surface"), pointBorderWidth: 1.5, spanGaps: true },
+      { label: "Target", data: st.weeks.map(() => T), borderColor: cssv("--muted"), borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false } ] },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ filter: i => i.datasetIndex === 0, callbacks: { title: i => "Week of " + i[0].label, label: i => `Median ${num(i.parsed.y)} BH` } }) }, scales: ax } });
+}
+
+// ---------- generic heatmap ----------
+function heatmap(el, { cols, rows, colMin = 46, rowHead = "", compact = false }) {
+  // cols: [{label, tip?, cls?, click?}], rows: [{label, total?, cells: [{text, bg, tip, cls, click}]} | {sep:true}]
+  let h = `<div class="hm${compact ? " compact" : ""}" style="min-width:${130 + cols.length * (colMin + 3)}px;grid-template-columns:minmax(120px,max-content) repeat(${cols.length}, minmax(${colMin}px,1fr))">`;
+  h += `<div class="rh" style="color:var(--muted);font-size:11px">${rowHead}</div>`;
+  cols.forEach((c, i) => h += `<div class="ch ${c.cls || ""}${c.click ? " click" : ""}" data-col="${i}"${c.tip ? ` data-tip="${esc(c.tip)}"` : ""}>${c.label}</div>`);
+  rows.forEach((r, ri) => {
+    if (r.sep) { h += `<div class="sep"></div>`; return; }
+    h += `<div class="rh${r.total ? " total" : ""}">${esc(r.label)}</div>`;
+    r.cells.forEach((c, ci) => {
+      const style = c.bg ? `background:${c.bg};color:${inkOn(c.bg)}` : "";
+      h += `<div class="c ${c.cls || ""}${c.click ? " click" : ""}" data-r="${ri}" data-c="${ci}" style="${style}"${c.tip ? ` data-tip="${esc(c.tip)}"` : ""}>${c.text ?? ""}</div>`;
+    });
+  });
+  el.innerHTML = h + "</div>";
+  el.querySelectorAll(".c.click").forEach(n => n.onclick = () => rows[+n.dataset.r].cells[+n.dataset.c].click());
+  el.querySelectorAll(".ch.click").forEach(n => n.onclick = () => cols[+n.dataset.col].click());
+}
+
+// ---------- speed heatmap (BDR x week) ----------
+function speedHeat(st) {
+  const cell = list => {
+    const touched = list.filter(c => c.ft), m = median(touched.map(c => c.ft_bh));
+    if (!list.length) return { cls: "empty", text: "", tip: "No contacts assigned" };
+    if (m == null) return { cls: "zero", text: "—", tip: `${list.length} assigned, none touched yet` };
+    return { bg: div(speedT(m)), text: num(m), tip: `<b>Median ${num(m)} BH</b><br>${touched.length} touched of ${list.length} assigned<br>${list.filter(c => c.ft && c.ft_bh <= T).length} within 1 BH` };
+  };
+  const rows = st.bdrs.map(b => ({ label: b.name, cells: st.weeks.map(w => { const c = cell(st.contacts.filter(x => x.owner === b.id && x.week === w)); c.tip = c.tip && `<b>${esc(b.name)}</b> · week of ${wkShort(w)}<br>` + c.tip; return c; }) }));
+  if (st.bdrs.length > 1) rows.push({ sep: true }, { label: "Team", total: true, cells: st.weeks.map(w => cell(st.contacts.filter(x => x.week === w))) });
+  heatmap($("#hm-speed"), { cols: st.weeks.map(w => ({ label: wkShort(w), tip: "Week of " + wkShort(w) })), rows, colMin: 48, rowHead: "Week of →" });
+  $("#lg-speed").innerHTML = gradLegend(RAMPS.div[M()].slice().reverse(), "Fast (≤ 1 BH)", `Slow (≥ ${2 * B} BH)`, `<span style="display:inline-block;width:14px;height:10px;border-radius:3px;vertical-align:-1px;background:repeating-linear-gradient(45deg,var(--chip) 0 3px,transparent 3px 6px)"></span> no assignments`);
+}
+
+// ---------- scorecard heatmap ----------
+let sortCol = 3, sortDir = 1;
+const SCORE = [
+  ["Assigned", r => r.assigned, 0, v => v],
+  ["Touched", r => rate(r.touched, r.assigned), 1, v => pct(v, 1)],
+  ["Within 1 BH", r => rate(r.inTarget, r.assigned), 1, v => pct(v, 1)],
+  ["Median first touch (BH)", r => r.medFt, -1, v => num(v)],
+  ["Breach rate", r => rate(r.breached, r.assigned), -1, v => pct(v, 1)],
+  ["Touches / contact", r => r.t20, 1, v => num(v)],
+  ["Multi-channel", r => rate(r.multi, r.touched), 1, v => pct(v, 1)],
+  ["Calls", r => r.calls, 1, v => v],
+  ["Connect rate", r => rate(r.connected, r.calls), 1, v => pct(v, 1)],
+  ["Conversations", r => r.convo, 1, v => v],
+  ["Outcome logged", r => rate(r.outcome, r.calls), 1, v => pct(v, 1)],
+  ["Reply rate", r => rate(r.replied, r.mailed), 1, v => pct(v, 1)],
+  ["Bounce rate", r => rate(r.bounced, r.sent), -1, v => pct(v, 1)],
+  ["Meetings / 100", r => r.assigned ? 100 * r.meetings / r.assigned : null, 1, v => num(v)],
+];
+function scoreHeat(st) {
+  const per = st.bdrs.map(b => ({ b, a: agg(st.contacts.filter(c => c.owner === b.id), st.calls.filter(c => c[0] === b.id), st.emails.filter(e => e[0] === b.id)) }));
+  const vals = SCORE.map(([, f]) => per.map(p => f(p.a)));
+  const meds = vals.map(v => median(v.filter(x => x != null)));
+  const devs = vals.map((v, i) => Math.max(1e-9, ...v.filter(x => x != null).map(x => Math.abs(x - meds[i]))));
+  const order = per.map((_, i) => i).sort((i, j) => { const a = vals[sortCol][i], b = vals[sortCol][j]; if (a == null) return 1; if (b == null) return -1; return (a - b) * sortDir; });
+  const rows = order.map(i => ({ label: per[i].b.name, cells: SCORE.map(([name, , dir, fmt], k) => {
+    const v = vals[k][i];
+    if (v == null) return { cls: "zero", text: "—" };
+    if (!dir || per.length < 2) return { cls: "plain", text: fmt(v) };
+    const t = Math.max(-1, Math.min(1, (v - meds[k]) / devs[k] * dir));
+    return { bg: div(t * 0.9), text: fmt(v), tip: `<b>${esc(per[i].b.name)}</b> · ${name}<br>${fmt(v)} (team median ${fmt(meds[k])})` };
+  }) }));
+  if (per.length > 1) { const ta = agg(st.contacts, st.calls, st.emails); rows.push({ sep: true }, { label: "Team", total: true, cells: SCORE.map(([, f, , fmt]) => { const v = f(ta); return { cls: "plain", text: v == null ? "—" : fmt(v) }; }) }); }
+  heatmap($("#hm-score"), { cols: SCORE.map(([n], k) => ({ label: n + (k === sortCol ? (sortDir > 0 ? " ↑" : " ↓") : ""), cls: k === sortCol ? "sort" : "", click: () => { sortDir = sortCol === k ? -sortDir : 1; sortCol = k; scoreHeat(state()); } })), rows, colMin: 62 });
+  $("#lg-score").innerHTML = gradLegend(RAMPS.div[M()], "Worse than team", "Better than team");
+}
+
+// ---------- channel / source breakdown ----------
+let segMode = "chn";
+$("#seg-seg").querySelectorAll("button").forEach(b => b.onclick = () => { segMode = b.dataset.v; $("#seg-seg").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); segHeat(state()); });
+const SEGCOLS = [
+  ["Assigned", r => r.assigned, 0, v => v],
+  ["Touched", r => rate(r.touched, r.assigned), 1, v => pct(v, 1)],
+  ["Within 1 BH", r => rate(r.inTarget, r.assigned), 1, v => pct(v, 1)],
+  ["Median first touch (BH)", r => r.medFt, -1, v => num(v)],
+  ["Breach rate", r => rate(r.breached, r.assigned), -1, v => pct(v, 1)],
+  ["Touches / contact", r => r.t20, 1, v => num(v)],
+  ["Multi-channel", r => rate(r.multi, r.touched), 1, v => pct(v, 1)],
+  ["Reply rate", r => rate(r.replied, r.mailed), 1, v => pct(v, 1)],
+  ["Meetings / 100", r => r.assigned ? 100 * r.meetings / r.assigned : null, 1, v => num(v)],
+];
+function segHeat(st) {
+  const key = segMode, ms = MS[key];
+  const groups = ms.all.filter(v => ms.sel.has(v)).map(v => ({ v, a: agg(st.contacts.filter(c => c[key] === v), [], []) })).filter(g => g.a.assigned);
+  // reply rate and meetings use contact rows only, so empty activity arrays are fine here
+  const vals = SEGCOLS.map(([, f]) => groups.map(g => f(g.a)));
+  const meds = vals.map(v => median(v.filter(x => x != null)));
+  const devs = vals.map((v, i) => Math.max(1e-9, ...v.filter(x => x != null).map(x => Math.abs(x - meds[i]))));
+  const rows = groups.map((g, i) => ({ label: g.v, cells: SEGCOLS.map(([name, , dir, fmt], k) => {
+    const v = vals[k][i], click = () => { ms.set([g.v]); render(); };
+    if (v == null) return { cls: "zero", text: "—", click };
+    if (!dir || groups.length < 2) return { cls: "plain", text: fmt(v), click };
+    const t = Math.max(-1, Math.min(1, (v - meds[k]) / devs[k] * dir));
+    return { bg: div(t * 0.9), text: fmt(v), click, tip: `<b>${esc(g.v)}</b> · ${name}<br>${fmt(v)} (median across ${key === "chn" ? "channels" : "sources"} ${fmt(meds[k])})<br><span style="opacity:.7">Click to filter to ${esc(g.v)}</span>` };
+  }) }));
+  if (!rows.length) { $("#hm-seg").innerHTML = '<div class="empty-msg">No contacts for this selection.</div>'; return; }
+  heatmap($("#hm-seg"), { cols: SEGCOLS.map(([n]) => ({ label: n })), rows, colMin: 70, rowHead: key === "chn" ? "Channel_" : "Original source" });
+}
+
+// ---------- hygiene heatmap + list ----------
+const CHECKS = [
+  ["working_idle", "Working, idle 2+ days", "Working idle", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["last", "Last touch", fmtDT], ["status_at", "Set to Working", fmtDT], ["idle_bd", "Idle (business days)", num, 1]]],
+  ["meeting_no_deal", "Meeting scheduled, no open deal", "Meeting, no deal", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["status_at", "Status set", fmtDT], ["age_bd", "Business days since", num, 1], ["deals_total", "Closed deals found", null, 1]]],
+  ["closed_low_touch", "Closed without adequate touches", "Closed, low touch", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["status", "Status"], ["changed", "Changed", fmtDT], ["touches", "Touches", null, 1], ["days", "Days", null, 1], ["calls", "Calls", null, 1]]],
+  ["breaches", "SLA breaches", "SLA breach", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["assigned", "Assigned", fmtDT], ["ft", "First touch", fmtDT], ["ft_bh", "BH to first touch", num, 1]]],
+  ["abandoned", "Abandoned after 1–2 touches", "Abandoned", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["t", "Touches", null, 1], ["last", "Last touch", fmtDT], ["idle_bd", "Idle (business days)", num, 1]]],
+  ["status_lag", "Touched, MQL Status still Untouched", "Status lag", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["ft", "First touch", fmtDT], ["t", "Touches", null, 1]]],
+  ["unworkable", "Missing phone or email", "Missing data", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["unworkable", "Missing"], ["assigned", "Assigned", fmtDT]]],
+  ["outcome_mismatch", "Call outcome says meeting, no meeting logged", "Outcome mismatch", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["call", "Call", fmtDT], ["outcome", "Outcome"]]],
+  ["pre_assignment", "Touch before assignment", "Pre-assignment", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["channel", "Channel"], ["activity", "Activity", fmtDT], ["assigned", "Assigned", fmtDT]]],
+];
+let hyg = { check: "working_idle", owner: null };
+function checkRows(key, ownerOk) {
+  if (D.checks[key]) return D.checks[key].filter(r => (ownerOk(r.owner) || (!BDR[r.owner] && ownerOk("__other"))) && (r.chn === undefined || SEG(r.chn, r.src)) && DATE_OK(r.aday));
+  const all = D.contacts.filter(c => ownerOk(c.owner) && SEG(c.chn, c.src) && DATE_OK(c.aday));
+  if (key === "breaches") return all.filter(c => (c.ft && c.ft_bh > B) || (!c.ft && c.age_bh >= B)).sort((a, b) => (b.ft_bh ?? 1e9) - (a.ft_bh ?? 1e9));
+  if (key === "abandoned") return all.filter(c => c.abandoned);
+  if (key === "status_lag") return all.filter(c => c.status_lag);
+  if (key === "unworkable") return all.filter(c => c.unworkable);
+  return [];
+}
+function hygieneUI(st) {
+  const owners = st.bdrs.map(b => ({ id: b.id, label: b.name }));
+  if (!st.b && (D.checks.demo_overdue || []).some(r => !BDR[r.owner])) owners.push({ id: "__other", label: "Other owners" });
+  const ownerMatch = id => o => id === "__other" ? !BDR[o] : o === id;
+  const counts = CHECKS.map(([k]) => owners.map(o => checkRows(k, ownerMatch(o.id)).length));
+  const colMax = counts.map(c => Math.max(1, ...c));
+  const rows = owners.map((o, oi) => ({ label: o.label, cells: CHECKS.map(([k, long], ci) => {
+    const n = counts[ci][oi], sel = hyg.check === k && hyg.owner === o.id;
+    const base = { text: n, click: () => { hyg = { check: k, owner: o.id }; hygieneUI(state()); }, cls: sel ? "sel" : "", tip: `<b>${esc(o.label)}</b><br>${long}: ${n}` };
+    return n ? { ...base, bg: seq("warm", 0.15 + 0.85 * n / colMax[ci]) } : { ...base, cls: "zero" + (sel ? " sel" : "") };
+  }) }));
+  rows.push({ sep: true }, { label: "Team", total: true, cells: CHECKS.map(([k, long], ci) => {
+    const n = counts[ci].reduce((s, x) => s + x, 0), sel = hyg.check === k && !hyg.owner;
+    return { text: n, cls: "plain" + (sel ? " sel" : ""), click: () => { hyg = { check: k, owner: null }; hygieneUI(state()); }, tip: `<b>Team</b><br>${long}: ${n}` };
+  }) });
+  heatmap($("#hm-hyg"), { cols: CHECKS.map(([k, long, short]) => ({ label: short, tip: long, click: () => { hyg = { check: k, owner: null }; hygieneUI(state()); } })), rows, colMin: 70 });
+
+  const [, long, , cols] = CHECKS.find(c => c[0] === hyg.check);
+  const ownerOk = hyg.owner ? ownerMatch(hyg.owner) : st.ownerOk;
+  const list = checkRows(hyg.check, hyg.owner ? ownerOk : (o => st.ownerOk(o) || (!st.b && !BDR[o])));
+  $("#hyg-sel").innerHTML = `<span class="pill"><span class="sw" style="background:${seq("warm", 0.7)}"></span>${long}</span><span class="pill">${hyg.owner ? esc(owners.find(o => o.id === hyg.owner)?.label || "") : "Whole team"}</span><span style="color:var(--muted)">${list.length} record${list.length === 1 ? "" : "s"}</span>`;
+  if (!list.length) { $("#t-check").innerHTML = `<tbody><tr><td class="empty-msg">Nothing to fix here.</td></tr></tbody>`; return; }
+  $("#t-check").innerHTML = `<thead><tr>${cols.map(([, l, , n]) => `<th class="${n ? "num" : ""}">${l}</th>`).join("")}</tr></thead><tbody>${
+    list.map(r => `<tr>${cols.map(([k, , f, n]) => {
+      const v = k === "name" ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>` : k === "owner" ? esc(ownerName(r.owner)) : k === "owner_name" ? esc(BDR[r.owner] ? ownerName(r.owner) : r.owner_name) : esc(f ? f(r[k]) : (r[k] ?? "—"));
+      return `<td class="${n ? "num" : ""}">${v}</td>`; }).join("")}</tr>`).join("")}</tbody>`;
+}
+
+
+// ---------- disqualified without adequate touches ----------
+let dqs = { status: "Disqualified", owner: null };
+$("#dqs-seg").querySelectorAll("button").forEach(b => b.onclick = () => { dqs = { status: b.dataset.v, owner: null }; dqsRender(state()); });
+function dqsRender(st) {
+  const [MT, MD, MC] = D.config.adequate;
+  const stName = dqs.status === "all" ? "Disqualified, Not Interested or No Response" : dqs.status;
+  $("#dq-title").textContent = dqs.status === "all" ? "Closed out without adequate touches" : `${dqs.status} without adequate touches`;
+  $("#dq-rule").innerHTML = `<b>Adequate touches</b> = at least ${MT} qualifying touches (outbound calls or 1:1 emails by the owner) on at least ${MD} separate days, including at least ${MC} call, between assignment and the moment MQL Status was set to ${esc(stName)}. Filtered by the date the status was set, plus the BDR, channel and source filters.`;
+  document.querySelectorAll("#dqs-seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === dqs.status));
+  const all = (D.closed || []).filter(r => (dqs.status === "all" || r.status === dqs.status) && st.ownerOk(r.owner) && SEG(r.chn, r.src) && st.inD(r.day));
+  const bad = all.filter(r => !r.adequate);
+  const miss = { t: bad.filter(r => r.touches < MT).length, d: bad.filter(r => r.days < MD).length, c: bad.filter(r => r.calls < MC).length };
+  const zero = bad.filter(r => r.touches === 0).length;
+  const medT = median(bad.map(r => r.touches));
+  const tiles = [
+    [`Set to ${dqs.status === "all" ? "closed" : dqs.status}`, all.length, "in the date range", 0],
+    ["Without adequate touches", bad.length, `${pct(bad.length, all.length)} of them`, 7, `<span class="badge ${bad.length ? "b-critical" : "b-good"}">${bad.length ? pct(bad.length, all.length) : "None"}</span>`],
+    ["Closed with zero touches", zero, "no call or email at all", 1],
+    ["Median touches (inadequate)", medT == null ? "—" : num(medT), `vs a minimum of ${MT}`, 4],
+  ];
+  $("#dqs-kpis").innerHTML = tiles.map(([l, v, n, ci, badge]) => `<div class="kpi" style="--c:${slot(ci)}"><div class="top"><span class="label">${l}</span>${badge || ""}</div><div class="value">${v}</div><div class="note">${n}</div></div>`).join("");
+
+  // per-BDR stacked bars
+  const per = st.bdrs.map(b => { const x = all.filter(r => r.owner === b.id); return { id: b.id, name: b.name, n: x.length, bad: x.filter(r => !r.adequate).length }; }).filter(p => p.n)
+    .sort((a, b) => b.bad - a.bad || rate(b.bad, b.n) - rate(a.bad, a.n));
+  const cBad = seq("warm", 0.62), cOk = slot(2);
+  $("#dqs-bdr-box").style.height = Math.max(220, 34 * per.length + 50) + "px";
+  const endPct = { id: "endPct", afterDatasetsDraw(chart) { const { ctx } = chart, m0 = chart.getDatasetMeta(0), m1 = chart.getDatasetMeta(1); ctx.save(); ctx.font = "600 12px Inter, system-ui, sans-serif"; ctx.textBaseline = "middle";
+    m1.data.forEach((bar, i) => { const p = per[i]; ctx.fillStyle = p.bad ? cssv("--critical") : cssv("--muted"); ctx.fillText(pct(p.bad, p.n), Math.max(bar.x, m0.data[i].x) + 8, bar.y); }); ctx.restore(); } };
+  mk("#c-dqs-bdr", { type: "bar", plugins: [endPct], data: { labels: per.map(p => p.name), datasets: [
+      { label: "Not adequate", data: per.map(p => p.bad), backgroundColor: cBad, hoverBackgroundColor: cBad, borderColor: cssv("--surface"), borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 4, barThickness: 18 },
+      { label: "Adequate", data: per.map(p => p.n - p.bad), backgroundColor: cOk, hoverBackgroundColor: cOk, borderColor: cssv("--surface"), borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 4, barThickness: 18 } ] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, layout: { padding: { right: 44 } },
+      onClick: (e, els) => { if (els.length) { dqs.owner = per[els[0].index].id; dqsRender(state()); } },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ displayColors: true, boxPadding: 4, callbacks: { afterBody: i => { const p = per[i[0].dataIndex]; return `${p.bad} of ${p.n} without adequate touches`; } } }) },
+      scales: { x: { stacked: true, beginAtZero: true, grid: { color: cssv("--grid") }, border: { display: false }, ticks: { color: cssv("--muted"), precision: 0 } }, y: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: cssv("--ink-2") } } } } });
+  $("#lg-dqs-bdr").innerHTML = `<span><i style="background:${cBad}"></i>Without adequate touches</span><span><i style="background:${cOk}"></i>Adequately worked</span><span style="color:var(--muted)">Click a bar to list that BDR's contacts</span>`;
+
+  // distribution of touches
+  const bins = Array.from({ length: MT + 2 }, (_, i) => i); // 0..MT, MT+1 = more
+  const lab = bins.map(i => i === MT + 1 ? `${MT + 1}+` : String(i));
+  const cnt = bins.map(i => all.filter(r => i === MT + 1 ? r.touches > MT : r.touches === i).length);
+  const cols = bins.map(i => i < MT ? seq("warm", 0.85 - 0.45 * i / Math.max(1, MT - 1)) : cOk);
+  const line = { id: "minLine", afterDatasetsDraw(chart) { const { ctx, chartArea, scales } = chart; const x = (scales.x.getPixelForValue(MT - 1) + scales.x.getPixelForValue(MT)) / 2;
+    ctx.save(); ctx.strokeStyle = cssv("--ink-2"); ctx.setLineDash([4, 4]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x, chartArea.top); ctx.lineTo(x, chartArea.bottom); ctx.stroke();
+    ctx.setLineDash([]); ctx.fillStyle = cssv("--ink-2"); ctx.font = "600 11px Inter, system-ui, sans-serif"; ctx.fillText(`${MT}-touch minimum`, x + 6, chartArea.top + 10); ctx.restore(); } };
+  mk("#c-dqs-dist", { type: "bar", plugins: [line], data: { labels: lab, datasets: [{ data: cnt, backgroundColor: cols, hoverBackgroundColor: cols, borderRadius: { topLeft: 5, topRight: 5 }, borderSkipped: "bottom", maxBarThickness: 46 }] },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, plugins: { legend: { display: false }, tooltip: tipOpts({ callbacks: { title: i => `${i[0].label} touch${i[0].label === "1" ? "" : "es"} before the status was set`, label: c => `${c.parsed.y} contacts (${pct(c.parsed.y, all.length)})` } }) },
+      scales: (() => { const a = axes("Contacts"); a.x.title = { display: true, text: "Touches before status change", color: cssv("--muted") }; return a; })() } });
+  $("#lg-dqs-dist").innerHTML = `<span>Of those without adequate touches:</span><span><b>${miss.t}</b>&nbsp;had fewer than ${MT} touches</span><span><b>${miss.d}</b>&nbsp;spanned fewer than ${MD} days</span><span><b>${miss.c}</b>&nbsp;had no call</span>`;
+
+  // list
+  const list = bad.filter(r => !dqs.owner || r.owner === dqs.owner).sort((a, b) => a.touches - b.touches || b.changed.localeCompare(a.changed));
+  $("#dqs-sel").innerHTML = (dqs.owner ? `<span class="pill">${esc(ownerName(dqs.owner))}</span><button type="button" id="dqs-clear" style="font-size:12px;padding:3px 10px">Show all BDRs</button>` : "") + `<span style="color:var(--muted)">${list.length} contact${list.length === 1 ? "" : "s"} without adequate touches, fewest touches first</span>`;
+  const clr = $("#dqs-clear"); if (clr) clr.onclick = () => { dqs.owner = null; dqsRender(state()); };
+  const missing = r => [r.touches < MT ? `${MT - r.touches} more touch${MT - r.touches === 1 ? "" : "es"}` : "", r.days < MD ? `${MD - r.days} more day${MD - r.days === 1 ? "" : "s"}` : "", r.calls < MC ? "a call" : ""].filter(Boolean).join(", ");
+  $("#t-dqs").innerHTML = list.length ? `<thead><tr><th>Contact</th><th>Company</th><th>BDR</th><th>Status</th><th>Reason</th><th>Status set</th><th class="num">Business days worked</th><th class="num">Touches</th><th class="num">Calls</th><th class="num">Emails</th><th class="num">Days</th><th>Short of</th></tr></thead><tbody>${
+    list.map(r => `<tr><td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></td><td>${esc(r.company || "—")}</td><td>${esc(ownerName(r.owner))}</td><td>${esc(r.status)}</td><td>${r.reason ? esc(r.reason) : '<span style="color:var(--muted)">Not set</span>'}</td><td>${fmtDT(r.changed)}</td><td class="num">${num(r.bd)}</td><td class="num">${r.touches}</td><td class="num">${r.calls}</td><td class="num">${r.emails}</td><td class="num">${r.days}</td><td><span class="badge b-critical">${missing(r)}</span></td></tr>`).join("")}</tbody>`
+    : `<tbody><tr><td class="empty-msg">Every contact closed out with this status was adequately worked.</td></tr></tbody>`;
+}
+
+// ---------- coverage ----------
+function coverageCharts(st) {
+  const unt = st.contacts.filter(r => !r.ft), ag = D.config.aging;
+  const av = ag.map(([lo, hi]) => unt.filter(r => { const d = r.age_bh / D.config.bh_per_day; return d >= lo && (hi == null || d < hi + 1); }).length);
+  barChart("#c-aging", ag.map(a => a[2] + " days"), av, ag.map((_, i) => seq("warm", 0.3 + 0.7 * i / (ag.length - 1))), "Contacts", ctx => `${ctx.parsed.y} untouched contacts`);
+  const tc = st.contacts.filter(r => r.t > 0), dl = ["1", "2", "3", "4", "5", "6+"];
+  barChart("#c-drop", dl.map(x => x + (x === "1" ? " touch" : " touches")), dl.map((x, i) => tc.filter(r => i < 5 ? r.t === i + 1 : r.t >= 6).length),
+    dl.map((_, i) => seq("aqua", 0.3 + 0.7 * i / (dl.length - 1))), "Contacts", ctx => `${ctx.parsed.y} contacts (${pct(ctx.parsed.y, tc.length)})`);
+}
+
+// ---------- activity heatmap ----------
+let actMode = "calls";
+$("#act-seg").querySelectorAll("button").forEach(b => b.onclick = () => { actMode = b.dataset.v; $("#act-seg").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); activityHeat(state()); });
+function activityHeat(st) {
+  const grid = Array.from({ length: 7 }, () => Array(24).fill(0));
+  if (actMode !== "emails") st.calls.forEach(c => { if (c[11] != null) grid[c[11]][c[2]]++; });
+  if (actMode !== "calls") st.emails.forEach(e => { if (!e[4] && e[6] != null) grid[e[6]][e[5]]++; });
+  const max = Math.max(1, ...grid.flat());
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"], what = { calls: "calls", emails: "1:1 emails", both: "touches" }[actMode];
+  const rows = days.map((d, di) => ({ label: d, cells: grid[di].map((n, h) => n ? { bg: seq("blue", 0.12 + 0.88 * Math.sqrt(n / max)), text: "", tip: `<b>${d} ${String(h).padStart(2, "0")}:00–${String(h + 1).padStart(2, "0")}:00</b><br>${n} ${what}` } : { cls: "zero", text: "", tip: `${d} ${String(h).padStart(2, "0")}:00 · none` }) }));
+  heatmap($("#hm-act"), { cols: Array.from({ length: 24 }, (_, h) => ({ label: String(h).padStart(2, "0"), cls: h >= 7 && h <= 20 ? "bh" : "" })), rows, colMin: 26, compact: true, rowHead: "" });
+  $("#lg-act").innerHTML = gradLegend([0.12, 0.4, 0.7, 1].map(t => seq("blue", t)), "Few", `Most (${max} in an hour)`);
+}
+
+// ---------- call metrics ----------
+const TS = D.config.talk_min_s || 30;
+const mmss = s => s == null ? "—" : `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+const hm = s => s == null ? "—" : s >= 3600 ? `${Math.floor(s / 3600)}h ${String(Math.round((s % 3600) / 60)).padStart(2, "0")}m` : `${Math.round(s / 60)}m`;
+function callAgg(rows) {
+  const placed = rows.filter(c => c[10] && !c[9]);
+  const conn = placed.filter(c => c[3]), notConn = placed.filter(c => !c[3]);
+  const days = new Set(placed.map(c => c[16]));
+  const connTimed = conn.filter(c => c[14] > 0);
+  return { placed: placed.length, connected: conn.length, connectRate: rate(conn.length, placed.length),
+    connTalk: conn.filter(c => c[18] === 1).length, connNotes: conn.filter(c => c[18] === 2).length,
+    contacts: new Set(placed.map(c => c[15]).filter(Boolean)).size, contactsConn: new Set(conn.map(c => c[15]).filter(Boolean)).size,
+    days: days.size, perDay: days.size ? placed.length / days.size : null, convo: placed.filter(c => c[14] >= 60).length,
+    short: notConn.filter(c => c[14] > 0).length, zero: notConn.filter(c => c[17] && c[14] === 0).length, nodur: notConn.filter(c => !c[17]).length,
+    avgConn: connTimed.length ? connTimed.reduce((s, c) => s + c[14], 0) / connTimed.length : null,
+    totalTalk: placed.reduce((s, c) => s + (c[14] || 0), 0),
+    nodurRate: rate(placed.filter(c => !c[17]).length, placed.length) };
+}
+const CONN_RULE = () => `more than ${TS}s of talk time${D.config.conn_manual_notes ? ", or logged manually with notes" : ""}`;
+const COL_TOTAL = () => isDark() ? "#2d4f7c" : "#b7d3f6";
+function callKpis(st) {
+  $("#call-rule").textContent = `Connected = an outbound call with more than ${TS} seconds of talk time${D.config.conn_manual_notes ? ", or a call logged manually that has call notes" : ""}. Connect rate = connected calls ÷ total calls. Failed, cancelled and duplicate call logs are excluded.`;
+  const a = callAgg(st.calls), wk = st.weeks.map(w => callAgg(st.calls.filter(c => c[1] === w)));
+  const tiles = [
+    ["Total calls", a.placed, `${a.contacts} contacts dialled`, x => x.placed, 0],
+    ["Connected calls", a.connected, `${a.connTalk} over ${TS}s · ${a.connNotes} manual with notes`, x => x.connected, 2],
+    ["Connect rate", pct(a.connected, a.placed), "connected ÷ total", x => x.connectRate, 6],
+    ["Contacts reached", a.contactsConn, `of ${a.contacts} contacts dialled`, x => x.contactsConn, 4],
+  ];
+  $("#call-kpis").innerHTML = tiles.map(([l, v, n, f, ci]) => `<div class="kpi" style="--c:${slot(ci)}"><div class="top"><span class="label">${l}</span></div><div class="value">${v}</div><div class="note">${n}</div>${spark(wk.map(f), slot(ci))}</div>`).join("");
+}
+const endLabels = { id: "endLabels", afterDatasetsDraw(chart, _, o) {
+  const { ctx, chartArea } = chart, meta = chart.getDatasetMeta(0);
+  ctx.save(); ctx.font = "600 12px Inter, system-ui, sans-serif"; ctx.fillStyle = o.color; ctx.textAlign = "left"; ctx.textBaseline = "middle";
+  meta.data.forEach((bar, i) => { const y = (bar.y + chart.getDatasetMeta(1).data[i].y) / 2; ctx.fillText(o.labels[i], chartArea.right + 10, y); });
+  ctx.restore();
+} };
+function totalVsConnected(st) {
+  const per = st.bdrs.map(b => ({ name: b.name, ...callAgg(st.calls.filter(c => c[0] === b.id)) })).sort((x, y) => (y.connectRate || 0) - (x.connectRate || 0));
+  $("#tvc-box").style.height = Math.max(220, 46 * per.length + 50) + "px";
+  const cols = [COL_TOTAL(), slot(2)];
+  mk("#c-tvc", { type: "bar", plugins: [endLabels], data: { labels: per.map(p => p.name), datasets: [
+      { label: "Total calls", data: per.map(p => p.placed), backgroundColor: cols[0], hoverBackgroundColor: cols[0], borderRadius: 4, barPercentage: 0.9, categoryPercentage: 0.75 },
+      { label: "Connected", data: per.map(p => p.connected), backgroundColor: cols[1], hoverBackgroundColor: cols[1], borderRadius: 4, barPercentage: 0.9, categoryPercentage: 0.75 } ] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, layout: { padding: { right: 52 } },
+      plugins: { legend: { display: false }, endLabels: { labels: per.map(p => pct(p.connected, p.placed)), color: cssv("--ink") },
+        tooltip: tipOpts({ displayColors: true, boxPadding: 4, callbacks: { afterBody: i => { const p = per[i[0].dataIndex]; return [`Connect rate ${pct(p.connected, p.placed)}`, `  ${p.connTalk} over ${TS}s`, `  ${p.connNotes} manual with notes`]; } } }) },
+      scales: { x: { beginAtZero: true, grid: { color: cssv("--grid") }, border: { display: false }, ticks: { color: cssv("--muted"), precision: 0 } }, y: { grid: { display: false }, border: { display: false }, ticks: { color: cssv("--ink-2") } } } } });
+  $("#lg-tvc").innerHTML = `<span><i style="background:${cols[0]}"></i>Total calls</span><span><i style="background:${cols[1]}"></i>Connected</span><span style="font-weight:600;color:var(--ink)">%</span><span style="margin-left:-8px">connect rate</span>`;
+}
+function talkChart(st) {
+  $("#talk-desc").textContent = `Each BDR's calls split by why they did or didn't count as connected, sorted by connect rate`;
+  const per = st.bdrs.map(b => ({ name: b.name, ...callAgg(st.calls.filter(c => c[0] === b.id)) })).sort((x, y) => (y.connectRate || 0) - (x.connectRate || 0));
+  $("#talk-box").style.height = Math.max(220, 46 * per.length + 50) + "px";
+  const parts = [["connTalk", `Connected: over ${TS}s`, slot(2)], ["connNotes", "Connected: manual with notes", seq("aqua", 0.45)], ["short", `Not connected: 1–${TS}s`, isDark() ? "#5598e7" : "#86b6ef"], ["zero", "Not connected: 0s", cssv("--axis")], ["nodur", "Not connected: no duration, no notes", seq("warm", 0.35)]];
+  mk("#c-talk", { type: "bar", data: { labels: per.map(p => p.name), datasets: parts.map(([k, label, color]) => ({ label, data: per.map(p => p.placed ? 100 * p[k] / p.placed : 0), backgroundColor: color, hoverBackgroundColor: color, borderColor: cssv("--surface"), borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 4, barThickness: 20 })) },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ callbacks: { title: i => i[0].label, label: ctx => { const p = per[ctx.dataIndex], k = parts[ctx.datasetIndex][0]; return `${ctx.dataset.label}: ${p[k]} of ${p.placed} calls (${Math.round(ctx.parsed.x)}%)`; } } }) },
+      scales: { x: { stacked: true, max: 100, grid: { color: cssv("--grid") }, border: { display: false }, ticks: { color: cssv("--muted"), callback: v => v + "%" } }, y: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: cssv("--ink-2") } } } } });
+  $("#lg-talk").innerHTML = parts.map(([, l, c]) => `<span><i style="background:${c}"></i>${l}</span>`).join("");
+}
+function callWeekCharts(st) {
+  const w = st.weeks.map(x => callAgg(st.calls.filter(c => c[1] === x))), labels = st.weeks.map(wkShort), cols = [COL_TOTAL(), slot(2)];
+  mk("#c-callwk", { type: "bar", data: { labels, datasets: [
+      { label: "Total calls", data: w.map(a => a.placed), backgroundColor: cols[0], hoverBackgroundColor: cols[0], borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", barPercentage: 0.9, categoryPercentage: 0.7 },
+      { label: "Connected", data: w.map(a => a.connected), backgroundColor: cols[1], hoverBackgroundColor: cols[1], borderRadius: { topLeft: 4, topRight: 4 }, borderSkipped: "bottom", barPercentage: 0.9, categoryPercentage: 0.7 } ] },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ displayColors: true, boxPadding: 4, callbacks: { title: i => "Week of " + i[0].label, afterBody: i => { const a = w[i[0].dataIndex]; return a.placed ? `Connect rate ${pct(a.connected, a.placed)}` : ""; } } }) }, scales: axes("Calls") } });
+  $("#lg-callwk").innerHTML = `<span><i style="background:${cols[0]}"></i>Total calls</span><span><i style="background:${cols[1]}"></i>Connected</span>`;
+
+  const all = callAgg(st.calls), avg = all.connectRate == null ? null : 100 * all.connectRate;
+  const r = w.map(a => a.connectRate == null ? null : +(100 * a.connectRate).toFixed(1));
+  const ctx = $("#c-ratewk").getContext("2d"), g = ctx.createLinearGradient(0, 0, 0, 240);
+  g.addColorStop(0, slot(2) + "45"); g.addColorStop(1, slot(2) + "00");
+  const ax = axes("Connect rate"); ax.y.ticks = { color: cssv("--muted"), callback: v => v + "%" }; ax.y.suggestedMax = Math.min(100, Math.ceil(Math.max(10, ...r.filter(x => x != null)) / 10) * 10 + 10);
+  mk("#c-ratewk", { type: "line", data: { labels, datasets: [
+      { label: "Connect rate", data: r, borderColor: slot(2), backgroundColor: g, fill: true, borderWidth: 2.5, tension: 0.35, pointRadius: 3.5, pointHoverRadius: 6, pointBackgroundColor: slot(2), pointBorderColor: cssv("--surface"), spanGaps: true },
+      { label: "Period average", data: labels.map(() => avg), borderColor: cssv("--muted"), borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false } ] },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ filter: i => i.datasetIndex === 0, callbacks: { title: i => "Week of " + i[0].label, label: i => { const a = w[i.dataIndex]; return `${num(i.parsed.y)}% · ${a.connected} of ${a.placed} calls`; } } }) }, scales: ax } });
+  $("#lg-ratewk").innerHTML = `<span><i style="background:${slot(2)}"></i>Connect rate</span><span><i style="background:transparent;border-top:2px dashed var(--muted);height:0;border-radius:0;width:14px"></i>Period average ${avg == null ? "—" : num(avg) + "%"}</span>`;
+}
+const CALLCOLS = [
+  ["Total calls", a => a.placed, "seq", v => v, "Outbound calls (failed, cancelled and duplicate logs excluded)"],
+  ["Connected calls", a => a.connected, "seq", v => v, "Calls with more than " + TS + " seconds of talk time, or logged manually with notes"],
+  ["Connect rate", a => a.connectRate, 1, v => pct(v, 1), "Connected calls ÷ total calls"],
+  [`Connected: over ${TS}s`, a => a.connTalk, "seq", v => v, `Connected because the call had more than ${TS} seconds of talk time`],
+  ["Connected: manual + notes", a => a.connNotes, "seq", v => v, "Connected because the call was logged manually with call notes"],
+  ["Contacts dialled", a => a.contacts, "seq", v => v, "Distinct contacts called"],
+  ["Contacts connected", a => a.contactsConn, "seq", v => v, "Distinct contacts with at least one connected call"],
+  ["Calling days", a => a.days, "seq", v => v, "Days with at least one call"],
+  ["Calls / calling day", a => a.perDay, "seq", v => num(v), "Total calls per day with calls"],
+  ["Conversations ≥ 60s", a => a.convo, "seq", v => v, "Calls with 60 seconds or more of talk time"],
+  ["Avg talk time (connected)", a => a.avgConn, 1, mmss, "Average duration of connected calls"],
+  ["Total talk time", a => a.totalTalk, "seq", hm, "Sum of call durations"],
+  ["No duration logged", a => a.nodurRate, -1, v => pct(v, 1), "Share of calls with no duration (usually manual logs); these count as connected only if they have notes"],
+];
+function callHeat(st) {
+  $("#call-desc").textContent = `Volume columns are shaded darker for more calls; rate columns are shaded against the team (blue better, red worse). Sorted by total calls.`;
+  const per = st.bdrs.map(b => ({ b, a: callAgg(st.calls.filter(c => c[0] === b.id)) }));
+  const vals = CALLCOLS.map(([, f]) => per.map(p => f(p.a)));
+  const meds = vals.map(v => median(v.filter(x => x != null)));
+  const maxs = vals.map(v => Math.max(1e-9, ...v.filter(x => x != null)));
+  const devs = vals.map((v, i) => Math.max(1e-9, ...v.filter(x => x != null).map(x => Math.abs(x - meds[i]))));
+  const order = per.map((_, i) => i).sort((i, j) => (vals[0][j] || 0) - (vals[0][i] || 0));
+  const rows = order.map(i => ({ label: per[i].b.name, cells: CALLCOLS.map(([name, , dir, fmt], k) => {
+    const v = vals[k][i];
+    if (v == null) return { cls: "zero", text: "—" };
+    const tipTxt = `<b>${esc(per[i].b.name)}</b> · ${name}<br>${fmt(v)} (team median ${fmt(meds[k])})`;
+    if (per.length < 2) return { cls: "plain", text: fmt(v) };
+    if (dir === "seq") return { bg: seq("blue", 0.08 + 0.8 * v / maxs[k]), text: fmt(v), tip: tipTxt };
+    const t = Math.max(-1, Math.min(1, (v - meds[k]) / devs[k] * dir));
+    return { bg: div(t * 0.9), text: fmt(v), tip: tipTxt };
+  }) }));
+  if (per.length > 1) { const ta = callAgg(st.calls); rows.push({ sep: true }, { label: "Team", total: true, cells: CALLCOLS.map(([, f, , fmt]) => { const v = f(ta); return { cls: "plain", text: v == null ? "—" : fmt(v) }; }) }); }
+  heatmap($("#hm-calls"), { cols: CALLCOLS.map(([n, , , , t]) => ({ label: n, tip: t })), rows, colMin: 70 });
+  $("#lg-calls").innerHTML = `<div style="display:flex;flex-wrap:wrap;gap:4px 24px">${gradLegend([0.08, 0.4, 0.88].map(t => seq("blue", t)), "Fewer", "More (volume)")}${gradLegend(RAMPS.div[M()], "Worse than team", "Better (rates)")}</div>`;
+}
+
+// ---------- data quality heatmap ----------
+function dqHeat(st) {
+  const per = st.bdrs.map(b => ({ b, a: agg([], st.calls.filter(c => c[0] === b.id), st.emails.filter(e => e[0] === b.id)) }));
+  const COLS = [
+    ["Manual calls", a => rate(a.manual, a.allCalls), v => pct(v, 1), "Share of calls logged by hand instead of by TeleCMI or Maqsam"],
+    ["Backdated > 24h", a => a.backdated, v => v, "Calls whose activity date is more than 24 hours before they were logged"],
+    ["Duplicate logs", a => a.dup, v => v, "Manual call logs within 5 minutes of a tool-logged call to the same contact"],
+    ["Calls without notes", a => a.calls ? 1 - a.notes / a.calls : null, v => pct(v, 1), "Share of calls with no call notes"],
+    ["Group emails", a => a.group, v => v, "Emails associated with more than 5 contacts"],
+  ];
+  const vals = COLS.map(([, f]) => per.map(p => f(p.a)));
+  const mx = vals.map(v => Math.max(1e-9, ...v.filter(x => x != null)));
+  const rows = per.map((p, i) => ({ label: p.b.name, cells: COLS.map(([n, , fmt], k) => { const v = vals[k][i]; if (v == null) return { cls: "zero", text: "—" }; if (!v) return { cls: "zero", text: fmt(v) }; return { bg: seq("warm", 0.1 + 0.8 * v / mx[k]), text: fmt(v), tip: `<b>${esc(p.b.name)}</b><br>${n}: ${fmt(v)}` }; }) }));
+  heatmap($("#hm-dq"), { cols: COLS.map(([n, , , t]) => ({ label: n, tip: t })), rows, colMin: 64 });
+}
+
+
+// ---------- deals view ----------
+const OH = D.demo_overdue_hours || 48;
+const STATUS_GROUPS = [
+  ["Not updated (Scheduled)", s => s === "Scheduled"],
+  ["Qualified / progressing", s => /^SQO|Discovery/i.test(s)],
+  ["Not a fit / lost", s => /Completed|Not qualified|Closed Lost/i.test(s)],
+  ["No show", s => /No Show/i.test(s)],
+  ["Other / blank", () => true],
+];
+const groupOf = s => STATUS_GROUPS.findIndex(([, f]) => f(s));
+const daysSince = d => Math.max(0, (d.overdue_h || 0) / 24);
+const AGE = [["2–3 days", 0, 3], ["3–7 days", 3, 7], ["1–2 weeks", 7, 14], ["2–4 weeks", 14, 30], ["30+ days", 30, 1e9]];
+let dlList = { mode: "overdue", owner: null, age: null };
+$("#dl-list-seg").querySelectorAll("button").forEach(b => b.onclick = () => { dlList = { mode: b.dataset.v, owner: null, age: null }; renderDeals(state()); });
+const money = v => v == null ? "—" : v.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+
+
+// ---------- deal funnel ----------
+const CUR = D.currency || "USD";
+const usd = v => v == null ? "—" : (CUR === "USD" ? "$" : CUR + " ") + (v >= 1e6 ? (v / 1e6).toFixed(2).replace(/\.?0+$/, "") + "M" : v >= 1e3 ? Math.round(v / 1e3) + "k" : Math.round(v));
+const usdFull = v => v == null ? "—" : (CUR === "USD" ? "$" : CUR + " ") + Math.round(v).toLocaleString("en-US");
+let fnSeg = "chn";
+$("#fn-seg").querySelectorAll("button").forEach(b => b.onclick = () => { fnSeg = b.dataset.v; renderDeals(state()); });
+function funnelAgg(sched, done, sqo) {
+  const val = sqo.reduce((s, d) => s + (d.value || 0), 0);
+  return { sched: sched.length, done: done.length, sqo: sqo.length, conv: rate(sqo.length, done.length), val, avg: sqo.length ? val / sqo.length : null };
+}
+function renderFunnel(st) {
+  const sched = st.deals, done = st.dealsDone, sqoL = st.dealsSqo, a = funnelAgg(sched, done, sqoL);
+  const fb = sqoL.filter(d => d.sqo_date_fallback).length;
+  $("#funnel-rule").innerHTML = `<b>Scheduled</b> = deals whose <b>Proposed Demo Date_</b> (<code>proposed_demo_date_</code>) falls in the range. <b>Done</b> = deals whose Demo Done Date falls in the range (or, if that's blank, whose Demo Status shows the demo happened). <b>SQO</b> = deals whose Demo Status is SQO &lt; 6months or SQO &gt; 6months, dated by <b>Last Stage Update to Demo - Disprz Sales Pipeline</b> (<code>last_stage_update_to_demo__</code>)${fb ? `; ${fb} SQO deal${fb === 1 ? " has" : "s have"} no such date (usually another pipeline), so Demo Done Date is used` : ""}. <b>Demo → SQO</b> = SQOs dated in the range ÷ demos done in the range. Value = Amount in company currency (${CUR}).`;
+  const wk = st.weeks.map(w => funnelAgg(sched.filter(d => weekOf(d.demo_date) === w), done.filter(d => weekOf(d.done_date) === w), sqoL.filter(d => weekOf(d.sqo_date) === w)));
+  const tiles = [
+    ["Demos scheduled", a.sched, "Proposed Demo Date_ in range", x => x.sched, 0],
+    ["Demos done", a.done, "demo done date in range", x => x.done, 2],
+    ["Demo → SQO", pct(a.sqo, a.done), `${a.sqo} SQOs from ${a.done} demos`, x => x.conv, 6],
+    ["SQO deals", a.sqo, "SQO date in range", x => x.sqo, 1],
+    ["SQO value", usd(a.val), a.avg == null ? "no SQOs" : `avg ${usd(a.avg)} per SQO`, x => x.val, 4],
+  ];
+  $("#funnel-kpis").innerHTML = tiles.map(([l, v, n, f, ci]) => `<div class="kpi" style="--c:${slot(ci)}"><div class="top"><span class="label">${l}</span></div><div class="value">${v}</div><div class="note">${n}</div>${spark(wk.map(f), slot(ci))}</div>`).join("");
+
+  // segment heatmap
+  const key = fnSeg, label = key === "chn" ? "Channel" : "Deal origination", ms = key === "chn" ? MS.dchn : MS.dorig;
+  document.querySelectorAll("#fn-seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === key));
+  $("#fn-title").textContent = "By deal " + label.toLowerCase().replace("deal ", "");
+  $("#fn-bars-title").textContent = `Scheduled, done and SQO by ${label.toLowerCase()}`;
+  const segs = [...new Set([...sched, ...done, ...sqoL].map(d => d[key]))].map(v => ({ v, ...funnelAgg(sched.filter(d => d[key] === v), done.filter(d => d[key] === v), sqoL.filter(d => d[key] === v)) }))
+    .sort((x, y) => y.sched - x.sched || y.done - x.done);
+  const COLS = [["Demos scheduled", "sched", "seq", v => v], ["Demos done", "done", "seq", v => v], ["SQO deals", "sqo", "seq", v => v],
+    ["Demo → SQO", "conv", 1, v => pct(v, 1)], ["SQO value", "val", "seq", usd], ["Avg SQO value", "avg", "seq", usd]];
+  const mx = COLS.map(([, k]) => Math.max(1e-9, ...segs.map(g => g[k] || 0)));
+  const convs = segs.map(g => g.conv).filter(x => x != null), cmed = median(convs), cdev = Math.max(1e-9, ...convs.map(x => Math.abs(x - cmed)));
+  const rows = segs.map(g => ({ label: g.v, cells: COLS.map(([n, k, dir, fmt], i) => {
+    const v = g[k], click = () => { ms.set([g.v]); render(); }, tip = `<b>${esc(g.v)}</b> · ${n}<br>${k === "val" || k === "avg" ? usdFull(v) : fmt(v)}`;
+    if (v == null) return { cls: "zero", text: "—", click };
+    if (!v && dir === "seq") return { cls: "zero", text: fmt(v), click, tip };
+    if (dir === "seq") return { bg: seq(k === "val" || k === "avg" ? "aqua" : "blue", 0.08 + 0.8 * v / mx[i]), text: fmt(v), click, tip };
+    if (segs.length < 2) return { cls: "plain", text: fmt(v), click };
+    return { bg: div(Math.max(-1, Math.min(1, (v - cmed) / cdev)) * 0.9), text: fmt(v), click, tip: tip + `<br>median ${pct(cmed, 1)}` };
+  }) }));
+  if (segs.length > 1) rows.push({ sep: true }, { label: "All", total: true, cells: COLS.map(([, k, , fmt]) => ({ cls: "plain", text: a[k] == null ? "—" : fmt(a[k]) })) });
+  if (segs.length) heatmap($("#hm-funnel"), { cols: COLS.map(([n]) => ({ label: n })), rows, colMin: 84, rowHead: label });
+  else $("#hm-funnel").innerHTML = '<div class="empty-msg">No deals for this selection.</div>';
+  $("#lg-funnel").innerHTML = segs.length ? `<div style="display:flex;flex-wrap:wrap;gap:4px 24px">${gradLegend([0.08, 0.45, 0.88].map(t => seq("blue", t)), "Fewer", "More deals")}${gradLegend([0.08, 0.45, 0.88].map(t => seq("aqua", t)), "Less", `More value (${CUR})`)}${gradLegend(RAMPS.div[M()], "Lower", "Higher conversion")}</div>` : "";
+
+  // grouped bars
+  const C3 = [slot(0), slot(2), slot(1)];
+  $("#fn-bars-box").style.height = Math.max(220, 52 * segs.length + 50) + "px";
+  const ds3 = [["Scheduled", "sched"], ["Done", "done"], ["SQO", "sqo"]].map(([l, k], i) => ({ label: l, data: segs.map(g => g[k]), backgroundColor: C3[i], hoverBackgroundColor: C3[i], borderRadius: 4, barPercentage: 0.92, categoryPercentage: 0.78 }));
+  mk("#c-fn-bars", { type: "bar", data: { labels: segs.map(g => g.v), datasets: ds3 },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ displayColors: true, boxPadding: 4, callbacks: { afterBody: i => { const g = segs[i[0].dataIndex]; return g.done ? `Demo → SQO ${pct(g.sqo, g.done)}` : ""; } } }) },
+      scales: { x: { beginAtZero: true, grid: { color: cssv("--grid") }, border: { display: false }, ticks: { color: cssv("--muted"), precision: 0 } }, y: { grid: { display: false }, border: { display: false }, ticks: { color: cssv("--ink-2") } } } } });
+  $("#lg-fn-bars").innerHTML = ["Demos scheduled", "Demos done", "SQO"].map((l, i) => `<span><i style="background:${C3[i]}"></i>${l}</span>`).join("");
+
+  // SQO value by origination (always origination, per the ask)
+  const og = [...new Set(sqoL.map(d => d.orig))].map(v => { const q = sqoL.filter(d => d.orig === v); return { v, n: q.length, val: q.reduce((s, d) => s + (d.value || 0), 0) }; }).sort((x, y) => y.val - x.val || y.n - x.n);
+  $("#sqo-val-desc").textContent = `Sum of Amount (${CUR}) for SQO deals with an SQO date in the range, with the SQO count on each bar`;
+  $("#sqo-val-box").style.height = Math.max(220, 34 * og.length + 50) + "px";
+  const vc = og.map((_, i) => seq("aqua", 0.85 - 0.5 * i / Math.max(1, og.length - 1)));
+  const valLabels = { id: "valLabels", afterDatasetsDraw(chart) { const { ctx } = chart, m = chart.getDatasetMeta(0); ctx.save(); ctx.font = "600 11px Inter, system-ui, sans-serif"; ctx.fillStyle = cssv("--ink-2"); ctx.textBaseline = "middle";
+    m.data.forEach((bar, i) => ctx.fillText(`${usd(og[i].val)} · ${og[i].n} SQO${og[i].n === 1 ? "" : "s"}`, bar.x + 8, bar.y)); ctx.restore(); } };
+  mk("#c-sqo-val", { type: "bar", plugins: [valLabels], data: { labels: og.map(g => g.v), datasets: [{ data: og.map(g => g.val), backgroundColor: vc, hoverBackgroundColor: vc, borderRadius: 4, barThickness: 20 }] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, layout: { padding: { right: 110 } },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ callbacks: { label: c => `${usdFull(og[c.dataIndex].val)} across ${og[c.dataIndex].n} SQO deals (avg ${usd(og[c.dataIndex].val / og[c.dataIndex].n)})` } }) },
+      scales: { x: { beginAtZero: true, grid: { color: cssv("--grid") }, border: { display: false }, ticks: { color: cssv("--muted"), callback: v => usd(v) } }, y: { grid: { display: false }, border: { display: false }, ticks: { color: cssv("--ink-2") } } } } });
+
+  // weekly funnel + conversion
+  mk("#c-fn-week", { type: "bar", data: { labels: st.weeks.map(wkShort), datasets: [["Scheduled", "sched"], ["Done", "done"], ["SQO", "sqo"]].map(([l, k], i) => ({ label: l, data: wk.map(x => x[k]), backgroundColor: C3[i], hoverBackgroundColor: C3[i], borderRadius: { topLeft: 3, topRight: 3 }, borderSkipped: "bottom", barPercentage: 0.9, categoryPercentage: 0.75 })) },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ displayColors: true, boxPadding: 4, callbacks: { title: i => "Week of " + i[0].label } }) }, scales: axes("Deals") } });
+  $("#lg-fn-week").innerHTML = ["Demos scheduled", "Demos done", "SQO"].map((l, i) => `<span><i style="background:${C3[i]}"></i>${l}</span>`).join("");
+  const conv = wk.map(x => x.conv == null ? null : +(100 * x.conv).toFixed(1)), avg = a.conv == null ? null : 100 * a.conv;
+  const ctx = $("#c-fn-conv").getContext("2d"), g = ctx.createLinearGradient(0, 0, 0, 240); g.addColorStop(0, slot(6) + "45"); g.addColorStop(1, slot(6) + "00");
+  const ax = axes("Demo → SQO"); ax.y.ticks = { color: cssv("--muted"), callback: v => v + "%" }; ax.y.suggestedMax = 100;
+  mk("#c-fn-conv", { type: "line", data: { labels: st.weeks.map(wkShort), datasets: [
+      { label: "Demo → SQO", data: conv, borderColor: slot(6), backgroundColor: g, fill: true, borderWidth: 2.5, tension: 0.35, pointRadius: 3.5, pointHoverRadius: 6, pointBackgroundColor: slot(6), pointBorderColor: cssv("--surface"), spanGaps: true },
+      { label: "Average", data: st.weeks.map(() => avg), borderColor: cssv("--muted"), borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0, pointHoverRadius: 0, fill: false } ] },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ filter: i => i.datasetIndex === 0, callbacks: { title: i => "Week of " + i[0].label, label: i => { const x = wk[i.dataIndex]; return `${num(i.parsed.y)}% · ${x.sqo} SQO of ${x.done} demos done`; } } }) }, scales: ax } });
+  $("#lg-fn-conv").innerHTML = `<span><i style="background:${slot(6)}"></i>Demo → SQO</span><span><i style="background:transparent;border-top:2px dashed var(--muted);height:0;border-radius:0;width:14px"></i>Period average ${avg == null ? "—" : num(avg) + "%"}</span>`;
+}
+
+function renderDeals(st) {
+  renderFunnel(st);
+  const ds = st.deals, past = ds.filter(d => d.past), over = past.filter(d => d.overdue);
+  const allOver = DEALS.filter(d => d.overdue).length;
+  $("#deal-cnt").textContent = allOver || ""; $("#deal-cnt").hidden = !allOver;
+  $("#deal-rule").innerHTML = `<b>Demo done but not updated</b> = the Proposed Demo Date_ (<code>proposed_demo_date_</code>) is more than ${OH} hours in the past (counted from the end of that day, IST) and the deal's Demo Status is still <b>Scheduled</b>. Filtered by proposed demo date, deal owner, BD SPOC, channel and origination.`;
+
+  // KPIs
+  const wk = st.weeks.map(w => { const x = ds.filter(d => weekOf(d.demo_date) === w), p = x.filter(d => d.past), o = p.filter(d => d.overdue); return { n: x.length, p: p.length, o: o.length, r: p.length ? 1 - o.length / p.length : null, med: median(o.map(daysSince)) }; });
+  const upcoming = ds.filter(d => !d.past).length, medDays = median(over.map(daysSince));
+  const tiles = [
+    ["Demos in range", ds.length, `${past.length} past · ${upcoming} upcoming or within ${OH}h`, x => x.n, 0],
+    ["Demo done, not updated", over.length, `of ${past.length} past demos`, x => x.o, 7, `<span class="badge ${over.length ? "b-critical" : "b-good"}">${over.length ? pct(over.length, past.length) + " not updated" : "All updated"}</span>`],
+    ["Update rate", pct(past.length - over.length, past.length), "past demos with a new Demo Status", x => x.r, 2],
+    ["Median days not updated", medDays == null ? "—" : Math.round(medDays), "since the demo date, for deals not updated", x => x.med, 1],
+  ];
+  $("#deal-kpis").innerHTML = tiles.map(([l, v, n, f, ci, badge]) => `<div class="kpi" style="--c:${slot(ci)}"><div class="top"><span class="label">${l}</span>${badge || ""}</div><div class="value">${v}</div><div class="note">${n}</div>${spark(wk.map(f), slot(ci))}</div>`).join("");
+
+  // owners
+  const owners = [...new Set(past.map(d => d.owner_name))].map(n => { const p = past.filter(d => d.owner_name === n), o = p.filter(d => d.overdue); return { n, past: p.length, over: o.length, upd: p.length - o.length, ages: AGE.map(([, lo, hi]) => o.filter(d => daysSince(d) >= lo && daysSince(d) < hi)) }; })
+    .sort((a, b) => b.over - a.over || b.past - a.past);
+  const notUpd = seq("warm", 0.62), upd = slot(2);
+  $("#dl-owner-box").style.height = Math.max(200, 34 * owners.length + 50) + "px";
+  mk("#c-dl-owner", { type: "bar", data: { labels: owners.map(o => o.n), datasets: [
+      { label: "Not updated", data: owners.map(o => o.over), backgroundColor: notUpd, hoverBackgroundColor: notUpd, borderColor: cssv("--surface"), borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 4, barThickness: 18 },
+      { label: "Updated", data: owners.map(o => o.upd), backgroundColor: upd, hoverBackgroundColor: upd, borderColor: cssv("--surface"), borderWidth: { right: 2 }, borderSkipped: false, borderRadius: 4, barThickness: 18 } ] },
+    options: { indexAxis: "y", responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+      onClick: (e, els) => { if (els.length) { dlList = { mode: "overdue", owner: owners[els[0].index].n, age: null }; renderDeals(state()); } },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ displayColors: true, boxPadding: 4, callbacks: { afterBody: i => { const o = owners[i[0].dataIndex]; return `${pct(o.over, o.past)} of ${o.past} past demos not updated`; } } }) },
+      scales: { x: { stacked: true, beginAtZero: true, grid: { color: cssv("--grid") }, border: { display: false }, ticks: { color: cssv("--muted"), precision: 0 } }, y: { stacked: true, grid: { display: false }, border: { display: false }, ticks: { color: cssv("--ink-2") } } } } });
+  $("#lg-dl-owner").innerHTML = `<span><i style="background:${notUpd}"></i>Not updated (still Scheduled)</span><span><i style="background:${upd}"></i>Updated</span><span style="color:var(--muted)">Click a bar to list that owner's deals</span>`;
+
+  // age heatmap
+  const withOver = owners.filter(o => o.over);
+  const colMax = AGE.map((_, k) => Math.max(1, ...withOver.map(o => o.ages[k].length)));
+  const ageRows = withOver.map(o => ({ label: o.n, cells: AGE.map(([lab], k) => { const n = o.ages[k].length, sel = dlList.owner === o.n && dlList.age === k;
+    const base = { text: n, cls: sel ? "sel" : "", click: () => { dlList = { mode: "overdue", owner: o.n, age: k }; renderDeals(state()); }, tip: `<b>${esc(o.n)}</b><br>${n} deal${n === 1 ? "" : "s"} not updated for ${lab}` };
+    return n ? { ...base, bg: seq("warm", 0.15 + 0.85 * n / colMax[k] * (0.55 + 0.45 * k / (AGE.length - 1))) } : { ...base, cls: "zero" + (sel ? " sel" : "") }; }) }));
+  if (withOver.length) {
+    ageRows.push({ sep: true }, { label: "All owners", total: true, cells: AGE.map(([lab], k) => { const n = withOver.reduce((s, o) => s + o.ages[k].length, 0); return { text: n, cls: "plain", click: () => { dlList = { mode: "overdue", owner: null, age: k }; renderDeals(state()); } }; }) });
+    heatmap($("#hm-dl-age"), { cols: AGE.map(([l]) => ({ label: l })), rows: ageRows, colMin: 70 });
+    $("#lg-dl-age").innerHTML = gradLegend([0.15, 0.5, 0.9].map(t => seq("warm", t)), "Fewer / newer", "More / older");
+  } else { $("#hm-dl-age").innerHTML = '<div class="empty-msg">Every past demo in this range has been updated.</div>'; $("#lg-dl-age").innerHTML = ""; }
+
+  // list
+  let list, desc;
+  if (dlList.mode === "upcoming") { list = ds.filter(d => !d.past).sort((a, b) => a.demo_date.localeCompare(b.demo_date)); desc = `Demos not yet ${OH} hours past their date, soonest first`; }
+  else if (dlList.mode === "all") { list = ds.slice().sort((a, b) => b.demo_date.localeCompare(a.demo_date)); desc = "Every deal with a proposed demo date in the range, newest first"; }
+  else { list = over.filter(d => (!dlList.owner || d.owner_name === dlList.owner) && (dlList.age == null || (daysSince(d) >= AGE[dlList.age][1] && daysSince(d) < AGE[dlList.age][2]))).sort((a, b) => b.overdue_h - a.overdue_h); desc = "Demo date passed, Demo Status still Scheduled. Oldest first. Open the deal in HubSpot and set the real Demo Status."; }
+  $("#dl-list-desc").textContent = desc;
+  document.querySelectorAll("#dl-list-seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === dlList.mode));
+  const chips = [];
+  if (dlList.owner) chips.push(esc(dlList.owner)); if (dlList.age != null) chips.push(AGE[dlList.age][0]);
+  $("#dl-sel").innerHTML = (chips.length ? chips.map(c => `<span class="pill">${c}</span>`).join("") + `<button type="button" id="dl-clear" style="font-size:12px;padding:3px 10px">Clear</button>` : "") + `<span style="color:var(--muted)">${list.length} deal${list.length === 1 ? "" : "s"}</span>`;
+  const clr = $("#dl-clear"); if (clr) clr.onclick = () => { dlList = { mode: dlList.mode, owner: null, age: null }; renderDeals(state()); };
+  const statusBadge = d => d.overdue ? `<span class="badge b-critical">Scheduled · not updated</span>` : d.status === "Scheduled" ? `<span class="badge b-warn">Scheduled</span>` : `<span class="badge b-good">${esc(d.status)}</span>`;
+  $("#t-deals").innerHTML = list.length ? `<thead><tr><th>Deal</th><th>Deal owner</th><th>BD SPOC</th><th>Proposed demo date</th><th class="num">Days since demo</th><th>Demo Status</th><th>Stage</th><th class="num">Amount</th></tr></thead><tbody>${
+    list.map(d => `<tr><td><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a></td><td>${esc(d.owner_name)}</td><td>${esc(d.spoc)}</td><td>${fmtD(d.demo_date + "T12:00:00+05:30")}</td><td class="num">${d.past ? Math.floor(daysSince(d)) : "—"}</td><td>${statusBadge(d)}</td><td>${esc(d.stage)}</td><td class="num">${money(d.amount)}</td></tr>`).join("")}</tbody>`
+    : `<tbody><tr><td class="empty-msg">Nothing here for this selection.</td></tr></tbody>`;
+
+  // status donut
+  const gc = STATUS_GROUPS.map((_, k) => past.filter(d => groupOf(d.status) === k).length);
+  const gcol = [seq("warm", 0.62), slot(2), slot(0), slot(6), cssv("--axis")];
+  $("#dl-status-total").textContent = past.length;
+  mk("#c-dl-status", { type: "doughnut", data: { labels: STATUS_GROUPS.map(g => g[0]), datasets: [{ data: gc, backgroundColor: gcol, hoverBackgroundColor: gcol, borderColor: cssv("--surface"), borderWidth: 3, hoverOffset: 4 }] },
+    options: { responsive: true, maintainAspectRatio: false, cutout: "68%", animation: { duration: 300 }, plugins: { legend: { display: false }, tooltip: tipOpts({ callbacks: { label: c => { const k = c.dataIndex, ss = {}; past.filter(d => groupOf(d.status) === k).forEach(d => ss[d.status] = (ss[d.status] || 0) + 1); return [`${c.label}: ${c.parsed} (${pct(c.parsed, past.length)})`, ...Object.entries(ss).sort((a, b) => b[1] - a[1]).map(([x, n]) => `  ${x}: ${n}`)]; } } }) } } });
+  $("#lg-dl-status").innerHTML = STATUS_GROUPS.map(([l], k) => gc[k] ? `<span><i style="background:${gcol[k]}"></i>${l} · ${gc[k]}</span>` : "").join("");
+
+  // weekly
+  const pw = st.weeks.map(w => { const p = past.filter(d => weekOf(d.demo_date) === w); return { o: p.filter(d => d.overdue).length, u: p.filter(d => !d.overdue).length }; });
+  mk("#c-dl-week", { type: "bar", data: { labels: st.weeks.map(wkShort), datasets: [
+      { label: "Updated", data: pw.map(x => x.u), backgroundColor: upd, hoverBackgroundColor: upd, borderColor: cssv("--surface"), borderWidth: { top: 2 }, borderSkipped: false, borderRadius: 3, maxBarThickness: 40 },
+      { label: "Not updated", data: pw.map(x => x.o), backgroundColor: notUpd, hoverBackgroundColor: notUpd, borderColor: cssv("--surface"), borderWidth: { top: 2 }, borderSkipped: false, borderRadius: 3, maxBarThickness: 40 } ] },
+    options: { responsive: true, maintainAspectRatio: false, animation: { duration: 300 }, interaction: { mode: "index", intersect: false },
+      plugins: { legend: { display: false }, tooltip: tipOpts({ displayColors: true, boxPadding: 4, callbacks: { title: i => "Week of " + i[0].label, afterBody: i => { const x = pw[i[0].dataIndex], n = x.o + x.u; return n ? `${pct(x.o, n)} not updated` : ""; } } }) },
+      scales: (() => { const a = axes("Deals"); a.x.stacked = true; a.y.stacked = true; return a; })() } });
+  $("#lg-dl-week").innerHTML = `<span><i style="background:${upd}"></i>Updated</span><span><i style="background:${notUpd}"></i>Not updated</span>`;
+}
+
+function render() {
+  const st = state();
+  const allOver = DEALS.filter(d => d.overdue).length;
+  $("#deal-cnt").textContent = allOver || ""; $("#deal-cnt").hidden = !allOver;
+  if (VIEW === "deals") { renderDeals(st); return; }
+  const a = kpis(st);
+  speedCharts(st, a);
+  speedHeat(st);
+  scoreHeat(st);
+  segHeat(st);
+  hygieneUI(st);
+  dqsRender(st);
+  coverageCharts(st);
+  callKpis(st);
+  totalVsConnected(st);
+  talkChart(st);
+  callWeekCharts(st);
+  callHeat(st);
+  activityHeat(st);
+  dqHeat(st);
+}
+render();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!document.documentElement.dataset.theme) render(); });
+</script>
+</body>
+</html>
