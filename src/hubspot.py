@@ -12,7 +12,7 @@ SEARCH_CAP = 10_000
 
 class HubSpot:
     def __init__(self, token=None):
-        self.token = token or os.environ["HUBSPOT_TOKEN"]
+        self.token = (token or os.environ["HUBSPOT_TOKEN"]).strip()
         self.s = requests.Session()
         self.s.headers.update({"Authorization": f"Bearer {self.token}", "Content-Type": "application/json"})
         self._last_search = 0.0
