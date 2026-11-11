@@ -171,6 +171,9 @@ a { color: var(--accent); text-decoration: none; font-weight: 500; }
 a:hover { text-decoration: underline; }
 .scroll { max-height: 440px; overflow: auto; }
 .empty-msg { color: var(--muted); padding: 18px 4px; }
+.csvbar { display: flex; justify-content: flex-end; margin: -6px 0 6px; }
+.csvbtn { font-size: 11.5px; padding: 3px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); }
+.csvbtn svg { width: 13px; height: 13px; }
 .selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 8px; font-size: 13px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 99px; padding: 4px 12px; font-weight: 500; }
 .pill .sw { width: 8px; height: 8px; border-radius: 50%; }
@@ -228,6 +231,7 @@ a:hover { text-decoration: underline; }
   <div class="ms" id="f-chn" data-view="contacts"></div>
   <div class="ms" id="f-src" data-view="contacts"></div>
   <button id="f-reset" type="button">Reset</button>
+  <button id="f-export" type="button" title="Download every contact (or deal, on the Deals tab) that matches the current filters">⬇ Export CSV</button>
 </div></div>
 
 <main>
@@ -1243,6 +1247,86 @@ function render() {
   activityHeat(st);
   dqHeat(st);
 }
+// ---------- CSV export (always reflects the filters on screen) ----------
+const DL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>';
+const csvCell = v => { v = v == null ? "" : String(v).replace(/\s+/g, " ").trim(); if (v === "—") v = "";
+  if (/^[=+@]/.test(v) || (/^-/.test(v) && isNaN(+v))) v = "'" + v; return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v; };
+function downloadCsv(name, rows) {
+  const st = state(), r = $("#f-range").value;
+  const range = r === "all" ? "all-dates" : `${st.f}_to_${st.t}`;
+  const file = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")}_${range}.csv`;
+  const blob = new Blob(["﻿" + rows.map(x => x.map(csvCell).join(",")).join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file; document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+}
+function tableRows(t) {
+  const trs = [...t.querySelectorAll("tr")]; if (!trs.length || t.querySelector(".empty-msg")) return [];
+  const links = trs.some(tr => tr.querySelector("a[href]"));
+  return trs.map((tr, i) => { const cells = [...tr.children].map(td => td.textContent);
+    if (links) cells.push(i === 0 && tr.closest("thead") ? "HubSpot link" : (tr.querySelector("a[href]")?.href || "")); return cells; });
+}
+function heatRows(el) {
+  const hm = el.querySelector(".hm"); if (!hm) return [];
+  const out = []; let row = null;
+  [...hm.children].forEach((n, i) => {
+    if (n.classList.contains("sep")) return;
+    const txt = n.textContent.replace(/\s*[↑↓]$/, "");
+    if (i === 0 || n.classList.contains("rh")) { row = [txt]; out.push(row); }
+    else row.push(txt);
+  });
+  return out;
+}
+function chartRows(canvas) {
+  const ch = charts["#" + canvas.id]; if (!ch) return [];
+  const ds = ch.data.datasets.filter(d => !d.csvSkip);
+  return [["", ...ds.map((d, i) => d.label || (ds.length > 1 ? "Series " + (i + 1) : "Value"))],
+    ...(ch.data.labels || []).map((l, i) => [Array.isArray(l) ? l.join(" ") : l, ...ds.map(d => { const v = d.data[i]; return v && typeof v === "object" ? (v.y ?? v.x) : v; })])];
+}
+function exportTitle(el) {
+  const card = el.closest(".card");
+  const h3 = [...(card ? card.querySelectorAll("h3") : [])].filter(h => h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
+  let sec = card; while (sec && !(sec.classList && sec.classList.contains("sec"))) sec = sec.previousElementSibling || sec.parentElement?.previousElementSibling;
+  let t = h3 ? h3.textContent : (sec ? sec.textContent : "export");
+  if (el.querySelector("#t-check")) t = [...document.querySelectorAll("#hyg-sel .pill")].map(x => x.textContent).join(" - ") || t;
+  return t;
+}
+function addCsvButton(target, getRows) {
+  const bar = document.createElement("div"); bar.className = "csvbar";
+  bar.innerHTML = `<button type="button" class="csvbtn" title="Download what this shows, with the current filters">${DL_ICON}Export CSV</button>`;
+  bar.firstChild.onclick = () => { const rows = getRows(); if (rows.length < 2) { alertBanner("Nothing to export for the current filters."); return; } downloadCsv(exportTitle(target), rows); };
+  target.parentElement.insertBefore(bar, target);
+}
+function alertBanner(msg) {
+  let n = $("#csv-msg"); if (!n) { n = document.createElement("div"); n.id = "csv-msg";
+    n.style.cssText = "position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:#111318;color:#fff;padding:9px 16px;border-radius:10px;font-size:13px;z-index:99;box-shadow:0 6px 24px rgba(0,0,0,.25)"; document.body.appendChild(n); }
+  n.textContent = msg; n.hidden = false; clearTimeout(n._t); n._t = setTimeout(() => n.hidden = true, 2600);
+}
+document.querySelectorAll("main .tablewrap").forEach(w => addCsvButton(w, () => tableRows(w.querySelector("table"))));
+document.querySelectorAll("main .hm-scroll").forEach(w => addCsvButton(w, () => heatRows(w)));
+document.querySelectorAll("main canvas").forEach(c => { const box = c.closest(".chart, .donut"); if (box) addCsvButton(box, () => chartRows(c)); });
+
+// Filter-bar export: every underlying record that matches the filters
+$("#f-export").onclick = () => {
+  const st = state(), yn = v => v ? "Yes" : "No";
+  if (VIEW === "deals") {
+    const m = new Map(); [...st.deals, ...st.dealsDone, ...st.dealsSqo].forEach(d => m.set(d.id, d));
+    const sch = new Set(st.deals.map(d => d.id)), dn = new Set(st.dealsDone.map(d => d.id)), sq = new Set(st.dealsSqo.map(d => d.id));
+    const rows = [["Deal", "Deal owner", "BD SPOC", "Deal channel", "Deal origination", "Demo Status", "Stage", "Pipeline", "Proposed demo date", "Demo done date", "SQO date",
+      "Scheduled in range", "Done in range", "SQO in range", `Value (${CUR})`, "Demo done but not updated", "HubSpot link"],
+      ...[...m.values()].map(d => [d.name, d.owner_name, d.spoc, d.chn, d.orig, d.status, d.stage, d.pipeline, d.demo_date, d.done_date, d.sqo_date,
+        yn(sch.has(d.id)), yn(dn.has(d.id)), yn(sq.has(d.id)), d.sqo ? d.value : "", yn(d.overdue), d.url])];
+    if (rows.length < 2) return alertBanner("No deals match the current filters.");
+    return downloadCsv("deals", rows);
+  }
+  const rows = [["Contact", "Company", "BDR", "MQL Status", "Channel_", "Original source", "Assigned (IST)", "First touch (IST)", "First touch via", "Business hours to first touch",
+    "Within 1 BH", "Touches", "Calls", "Emails", "Days touched", "Last touch (IST)", "Idle (business days)", "Replied", "Meeting", "Missing data", "HubSpot link"],
+    ...st.contacts.map(c => [c.name, c.company, ownerName(c.owner), c.mql, c.chn, c.src, fmtFull(c.assigned), fmtFull(c.ft), c.ft_ch || "", c.ft_bh ?? "",
+      yn(c.ft && c.ft_bh <= T), c.t, c.calls, c.emails, c.days, fmtFull(c.last), c.idle_bd ?? "", yn(c.replied), yn(c.meeting), c.unworkable, c.url])];
+  if (rows.length < 2) return alertBanner("No contacts match the current filters.");
+  downloadCsv("contacts", rows);
+};
+const fmtFull = s => s ? new Date(s).toLocaleString("en-GB", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).replace(",", "") : "";
+
 render();
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { if (!document.documentElement.dataset.theme) render(); });
 </script>
