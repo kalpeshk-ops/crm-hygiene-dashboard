@@ -1206,9 +1206,10 @@ function renderDeals(st) {
   if (dlList.owner) chips.push(esc(dlList.owner)); if (dlList.age != null) chips.push(AGE[dlList.age][0]);
   $("#dl-sel").innerHTML = (chips.length ? chips.map(c => `<span class="pill">${c}</span>`).join("") + `<button type="button" id="dl-clear" style="font-size:12px;padding:3px 10px">Clear</button>` : "") + `<span style="color:var(--muted)">${list.length} deal${list.length === 1 ? "" : "s"}</span>`;
   const clr = $("#dl-clear"); if (clr) clr.onclick = () => { dlList = { mode: dlList.mode, owner: null, age: null }; renderDeals(state()); };
-  const statusBadge = d => d.overdue ? `<span class="badge b-critical">Scheduled · not updated</span>` : d.status === "Scheduled" ? `<span class="badge b-warn">Scheduled</span>` : `<span class="badge b-good">${esc(d.status)}</span>`;
-  $("#t-deals").innerHTML = list.length ? `<thead><tr><th>Deal</th><th>Deal owner</th><th>BD SPOC</th><th>Proposed demo date</th><th class="num">Days since demo</th><th>Demo Status</th><th>Stage</th><th class="num">Amount</th></tr></thead><tbody>${
-    list.map(d => `<tr><td><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a></td><td>${esc(d.owner_name)}</td><td>${esc(d.spoc)}</td><td>${fmtD(d.demo_date + "T12:00:00+05:30")}</td><td class="num">${d.past ? Math.floor(daysSince(d)) : "—"}</td><td>${statusBadge(d)}</td><td>${esc(d.stage)}</td><td class="num">${money(d.amount)}</td></tr>`).join("")}</tbody>`
+  const statusBadge = d => `<span class="badge ${d.status === "Scheduled" ? (d.overdue ? "b-critical" : "b-warn") : d.status === "(blank)" ? "" : "b-good"}">${esc(d.status === "(blank)" ? "Not set" : d.status)}</span>`;
+  const flag = d => d.overdue ? `<span class="badge b-critical">Not updated</span>` : d.past ? "Updated" : "Upcoming";
+  $("#t-deals").innerHTML = list.length ? `<thead><tr><th>Deal</th><th>Demo Status</th><th>Deal owner</th><th>BD SPOC</th><th>Proposed demo date</th><th class="num">Days since demo</th><th>Update check</th><th>Stage</th><th class="num">Amount</th></tr></thead><tbody>${
+    list.map(d => `<tr><td><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a></td><td>${statusBadge(d)}</td><td>${esc(d.owner_name)}</td><td>${esc(d.spoc)}</td><td>${fmtD(d.demo_date + "T12:00:00+05:30")}</td><td class="num">${d.past ? Math.floor(daysSince(d)) : "—"}</td><td>${flag(d)}</td><td>${esc(d.stage)}</td><td class="num">${money(d.amount)}</td></tr>`).join("")}</tbody>`
     : `<tbody><tr><td class="empty-msg">Nothing here for this selection.</td></tr></tbody>`;
 
   // status donut
