@@ -8,7 +8,7 @@ from .hubspot import HubSpot, to_ms
 CONTACT_PROPS = ["firstname", "lastname", "email", "phone", "mobilephone", "hubspot_owner_id",
                  "hubspot_owner_assigneddate", "mql_status", "mql_status_update_date",
                  "associatedcompanyid", "hs_lead_status", C.CHANNEL_PROPERTY, C.SOURCE_PROPERTY,
-                 "company", C.DISQ_REASON_PROPERTY, C.NI_REASON_PROPERTY]
+                 "company", C.REGION_PROPERTY, C.DISQ_REASON_PROPERTY, C.NI_REASON_PROPERTY]
 CALL_PROPS = ["hs_timestamp", "hs_createdate", "hubspot_owner_id", "hs_call_direction", "hs_call_status",
               "hs_call_disposition", "hs_call_duration", "hs_call_body", "hs_call_source",
               "hs_object_source_label", "hs_object_source_detail_1"]
@@ -18,7 +18,7 @@ MEETING_PROPS = ["hs_timestamp", "hs_createdate", "hubspot_owner_id", "hs_meetin
 DEAL_PROPS = ["dealname", "hubspot_owner_id", "hs_is_closed", "dealstage", "pipeline",
               "demo_status", C.DEMO_DATE_PROPERTY, "amount", "createdate", "hs_lastmodifieddate",
               C.DEAL_CHANNEL_PROPERTY, C.DEAL_ORIGINATION_PROPERTY, C.DEMO_DONE_DATE_PROPERTY, C.AMOUNT_PROPERTY, C.SQO_DATE_PROPERTY,
-              C.DEAL_SPOC_PROPERTY]
+              C.DEAL_SPOC_PROPERTY, C.DEAL_REGION_PROPERTY]
 
 
 def _flat(rec, keep=None):
@@ -110,6 +110,8 @@ def fetch_all(hs=None, log=print):
         "company_names": company_names,
         "reason_labels": {"disq": hs.property_labels("contacts", C.DISQ_REASON_PROPERTY),
                           "ni": hs.property_labels("contacts", C.NI_REASON_PROPERTY)},
+        "region_labels": {"contact": hs.property_labels("contacts", C.REGION_PROPERTY),
+                          "deal": hs.property_labels("deals", C.DEAL_REGION_PROPERTY)},
         "demo_window_deals": demo_window, "deal_stages": hs.deal_stages(),
         "now": now.isoformat(), "start": start.isoformat(),
         "contacts": list(contacts.values()), "calls": calls, "emails": emails, "meetings": meetings,

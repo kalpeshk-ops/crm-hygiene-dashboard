@@ -217,6 +217,7 @@ a:hover { text-decoration: underline; }
   <div class="ms" id="f-dspoc" data-view="deals"></div>
   <div class="ms" id="f-dchn" data-view="deals"></div>
   <div class="ms" id="f-dorig" data-view="deals"></div>
+  <div class="ms" id="f-dreg" data-view="deals"></div>
   <div class="daterange">
     <span>Date range <span class="hint" id="date-hint" title="Contacts are filtered by the date they were assigned; calls and emails by the date they happened">(assigned / activity date)</span></span>
     <div class="row">
@@ -230,6 +231,7 @@ a:hover { text-decoration: underline; }
   </div>
   <div class="ms" id="f-chn" data-view="contacts"></div>
   <div class="ms" id="f-src" data-view="contacts"></div>
+  <div class="ms" id="f-reg" data-view="contacts"></div>
   <button id="f-reset" type="button">Reset</button>
   <button id="f-export" type="button" title="Download every contact (or deal, on the Deals tab) that matches the current filters">⬇ Export CSV</button>
 </div></div>
@@ -492,7 +494,7 @@ function setTheme(t, save) {
 }
 document.querySelectorAll("#theme button").forEach(b => b.onclick = () => { setTheme(b.dataset.t, true); render(); });
 try { setTheme(localStorage.getItem("crmh-theme") || "system", false); } catch (e) { setTheme("system", false); }
-$("#f-reset").addEventListener("click", () => { resetFilters(); MS.chn.set(MS.chn.all); MS.src.set(MS.src.all); MS.bdr.set(MS.bdr.all); MS.downer.set(MS.downer.all); MS.dspoc.set(MS.dspoc.all); MS.dchn.set(MS.dchn.all); MS.dorig.set(MS.dorig.all); render(); });
+$("#f-reset").addEventListener("click", () => { resetFilters(); MS.chn.set(MS.chn.all); MS.src.set(MS.src.all); MS.bdr.set(MS.bdr.all); MS.downer.set(MS.downer.all); MS.dspoc.set(MS.dspoc.all); MS.dchn.set(MS.dchn.all); MS.dorig.set(MS.dorig.all); MS.reg.set(MS.reg.all); MS.dreg.set(MS.dreg.all); render(); });
 
 // ---------- channel / source multi-selects ----------
 function optionList(key) {
@@ -524,11 +526,12 @@ function multiSelect(el, label, allWord, options) {
 }
 document.addEventListener("click", () => document.querySelectorAll(".ms-pop").forEach(p => p.hidden = true));
 const MS = { chn: multiSelect($("#f-chn"), "Channel_", "All channels", optionList("chn")),
-             src: multiSelect($("#f-src"), "Original source", "All sources", optionList("src")) };
+             src: multiSelect($("#f-src"), "Original source", "All sources", optionList("src")),
+             reg: multiSelect($("#f-reg"), "Disprz Region", "All regions", optionList("reg")) };
 const bdrCounts = (() => { const n = {}; D.contacts.forEach(c => n[c.owner] = (n[c.owner] || 0) + 1); return n; })();
 MS.bdr = multiSelect($("#f-bdr"), "BDR", "All BDRs", D.bdrs.map(b => ({ v: b.name, n: bdrCounts[b.id] || 0 })));
 try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s && s.bdr) MS.bdr.set(s.bdr); } catch (e) {}
-try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s && s.chn) MS.chn.set(s.chn); if (s && s.src) MS.src.set(s.src); } catch (e) {}
+try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s && s.chn) MS.chn.set(s.chn); if (s && s.src) MS.src.set(s.src); if (s && s.reg) MS.reg.set(s.reg); } catch (e) {}
 let SEG = () => true;
 let DATE_OK = () => true;
 const DEALS = D.deals || [];
@@ -538,7 +541,8 @@ const dealOpts = key => { const n = {}; DEALS.forEach(d => n[d[key]] = (n[d[key]
 MS.dspoc = multiSelect($("#f-dspoc"), "BD SPOC", "All BD SPOCs", dealOpts("spoc"));
 MS.dchn = multiSelect($("#f-dchn"), "Deal channel", "All channels", dealOpts("chn"));
 MS.dorig = multiSelect($("#f-dorig"), "Deal origination", "All originations", dealOpts("orig"));
-try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s && s.downer) MS.downer.set(s.downer); if (s && s.dchn) MS.dchn.set(s.dchn); if (s && s.dspoc) MS.dspoc.set(s.dspoc); if (s && s.dorig) MS.dorig.set(s.dorig); } catch (e) {}
+MS.dreg = multiSelect($("#f-dreg"), "Deal Region", "All regions", dealOpts("reg"));
+try { const s = JSON.parse(localStorage.getItem("crmh-filters") || "null"); if (s && s.downer) MS.downer.set(s.downer); if (s && s.dchn) MS.dchn.set(s.dchn); if (s && s.dspoc) MS.dspoc.set(s.dspoc); if (s && s.dorig) MS.dorig.set(s.dorig); if (s && s.dreg) MS.dreg.set(s.dreg); } catch (e) {}
 
 // ---------- view tabs ----------
 let VIEW = "contacts";
@@ -557,9 +561,9 @@ try { setView(location.hash === "#deals" ? "deals" : (localStorage.getItem("crmh
 function state() {
   const bAll = MS.bdr.sel.size === MS.bdr.all.length, bIds = new Set(D.bdrs.filter(x => MS.bdr.sel.has(x.name)).map(x => x.id));
   const b = bAll ? "" : [...bIds].join(","), r = $("#f-range").value, f = $("#f-from").value || MIN_DAY, t = $("#f-to").value || MAX_DAY;
-  const chnAll = MS.chn.sel.size === MS.chn.all.length, srcAll = MS.src.sel.size === MS.src.all.length;
-  SEG = (chn, src) => (chnAll || MS.chn.sel.has(chn)) && (srcAll || MS.src.sel.has(src));
-  try { localStorage.setItem("crmh-filters", JSON.stringify({bdr: bAll ? null : [...MS.bdr.sel], r, f, t, chn: chnAll ? null : [...MS.chn.sel], src: srcAll ? null : [...MS.src.sel], downer: MS.downer && MS.downer.sel.size !== MS.downer.all.length ? [...MS.downer.sel] : null,
+  const chnAll = MS.chn.sel.size === MS.chn.all.length, srcAll = MS.src.sel.size === MS.src.all.length, regAll = MS.reg.sel.size === MS.reg.all.length;
+  SEG = (chn, src, reg) => (chnAll || MS.chn.sel.has(chn)) && (srcAll || MS.src.sel.has(src)) && (regAll || MS.reg.sel.has(reg ?? "(blank)"));
+  try { localStorage.setItem("crmh-filters", JSON.stringify({bdr: bAll ? null : [...MS.bdr.sel], r, f, t, chn: chnAll ? null : [...MS.chn.sel], src: srcAll ? null : [...MS.src.sel], reg: regAll ? null : [...MS.reg.sel], dreg: MS.dreg && MS.dreg.sel.size !== MS.dreg.all.length ? [...MS.dreg.sel] : null, downer: MS.downer && MS.downer.sel.size !== MS.downer.all.length ? [...MS.downer.sel] : null,
     dchn: MS.dchn && MS.dchn.sel.size !== MS.dchn.all.length ? [...MS.dchn.sel] : null, dorig: MS.dorig && MS.dorig.sel.size !== MS.dorig.all.length ? [...MS.dorig.sel] : null,
     dspoc: MS.dspoc && MS.dspoc.sel.size !== MS.dspoc.all.length ? [...MS.dspoc.sel] : null})); } catch (e) {}
   const inD = d => !!d && d >= f && d <= t, wf = weekOf(f);
@@ -568,11 +572,11 @@ function state() {
   const ownerOk = o => bAll || bIds.has(o);
   return {
     b, ownerOk, f, t, weeks: weeks.filter(inW), bdrs: D.bdrs.filter(x => ownerOk(x.id)),
-    inD, ...(() => { const base = DEALS.filter(d => MS.downer.sel.has(d.owner_name) && MS.dspoc.sel.has(d.spoc) && MS.dchn.sel.has(d.chn) && MS.dorig.sel.has(d.orig));
+    inD, ...(() => { const base = DEALS.filter(d => MS.downer.sel.has(d.owner_name) && MS.dspoc.sel.has(d.spoc) && MS.dchn.sel.has(d.chn) && MS.dorig.sel.has(d.orig) && MS.dreg.sel.has(d.reg));
       return { deals: base.filter(d => inD(d.demo_date)), dealsDone: base.filter(d => d.done && inD(d.done_date)), dealsSqo: base.filter(d => d.sqo && inD(d.sqo_date)) }; })(),
-    contacts: D.contacts.filter(c => ownerOk(c.owner) && inD(c.aday) && SEG(c.chn, c.src)),
-    calls: D.calls.filter(c => ownerOk(c[0]) && inD(c[16]) && SEG(c[12], c[13])),
-    emails: D.emails.filter(e => ownerOk(e[0]) && inD(e[9]) && SEG(e[7], e[8])),
+    contacts: D.contacts.filter(c => ownerOk(c.owner) && inD(c.aday) && SEG(c.chn, c.src, c.reg)),
+    calls: D.calls.filter(c => ownerOk(c[0]) && inD(c[16]) && SEG(c[12], c[13], c[19])),
+    emails: D.emails.filter(e => ownerOk(e[0]) && inD(e[9]) && SEG(e[7], e[8], e[10])),
   };
 }
 
@@ -786,8 +790,8 @@ const CHECKS = [
 ];
 let hyg = { check: "working_idle", owner: null };
 function checkRows(key, ownerOk) {
-  if (D.checks[key]) return D.checks[key].filter(r => (ownerOk(r.owner) || (!BDR[r.owner] && ownerOk("__other"))) && (r.chn === undefined || SEG(r.chn, r.src)) && DATE_OK(r.aday));
-  const all = D.contacts.filter(c => ownerOk(c.owner) && SEG(c.chn, c.src) && DATE_OK(c.aday));
+  if (D.checks[key]) return D.checks[key].filter(r => (ownerOk(r.owner) || (!BDR[r.owner] && ownerOk("__other"))) && (r.chn === undefined || SEG(r.chn, r.src, r.reg)) && DATE_OK(r.aday));
+  const all = D.contacts.filter(c => ownerOk(c.owner) && SEG(c.chn, c.src, c.reg) && DATE_OK(c.aday));
   if (key === "breaches") return all.filter(c => (c.ft && c.ft_bh > B) || (!c.ft && c.age_bh >= B)).sort((a, b) => (b.ft_bh ?? 1e9) - (a.ft_bh ?? 1e9));
   if (key === "abandoned") return all.filter(c => c.abandoned);
   if (key === "status_lag") return all.filter(c => c.status_lag);
@@ -832,7 +836,7 @@ function dqsRender(st) {
   $("#dq-title").textContent = dqs.status === "all" ? "Closed out without adequate touches" : `${dqs.status} without adequate touches`;
   $("#dq-rule").innerHTML = `<b>Adequate touches</b> = at least ${MT} qualifying touches (outbound calls or 1:1 emails by the owner) on at least ${MD} separate days, including at least ${MC} call, between assignment and the moment MQL Status was set to ${esc(stName)}. Filtered by the date the status was set, plus the BDR, channel and source filters.`;
   document.querySelectorAll("#dqs-seg button").forEach(b => b.setAttribute("aria-pressed", b.dataset.v === dqs.status));
-  const all = (D.closed || []).filter(r => (dqs.status === "all" || r.status === dqs.status) && st.ownerOk(r.owner) && SEG(r.chn, r.src) && st.inD(r.day));
+  const all = (D.closed || []).filter(r => (dqs.status === "all" || r.status === dqs.status) && st.ownerOk(r.owner) && SEG(r.chn, r.src, r.reg) && st.inD(r.day));
   const bad = all.filter(r => !r.adequate);
   const miss = { t: bad.filter(r => r.touches < MT).length, d: bad.filter(r => r.days < MD).length, c: bad.filter(r => r.calls < MC).length };
   const zero = bad.filter(r => r.touches === 0).length;
@@ -1311,16 +1315,16 @@ $("#f-export").onclick = () => {
   if (VIEW === "deals") {
     const m = new Map(); [...st.deals, ...st.dealsDone, ...st.dealsSqo].forEach(d => m.set(d.id, d));
     const sch = new Set(st.deals.map(d => d.id)), dn = new Set(st.dealsDone.map(d => d.id)), sq = new Set(st.dealsSqo.map(d => d.id));
-    const rows = [["Deal", "Deal owner", "BD SPOC", "Deal channel", "Deal origination", "Demo Status", "Stage", "Pipeline", "Proposed demo date", "Demo done date", "SQO date",
+    const rows = [["Deal", "Deal owner", "BD SPOC", "Deal channel", "Deal origination", "Deal Region", "Demo Status", "Stage", "Pipeline", "Proposed demo date", "Demo done date", "SQO date",
       "Scheduled in range", "Done in range", "SQO in range", `Value (${CUR})`, "Demo done but not updated", "HubSpot link"],
-      ...[...m.values()].map(d => [d.name, d.owner_name, d.spoc, d.chn, d.orig, d.status, d.stage, d.pipeline, d.demo_date, d.done_date, d.sqo_date,
+      ...[...m.values()].map(d => [d.name, d.owner_name, d.spoc, d.chn, d.orig, d.reg, d.status, d.stage, d.pipeline, d.demo_date, d.done_date, d.sqo_date,
         yn(sch.has(d.id)), yn(dn.has(d.id)), yn(sq.has(d.id)), d.sqo ? d.value : "", yn(d.overdue), d.url])];
     if (rows.length < 2) return alertBanner("No deals match the current filters.");
     return downloadCsv("deals", rows);
   }
-  const rows = [["Contact", "Company", "BDR", "MQL Status", "Channel_", "Original source", "Assigned (IST)", "First touch (IST)", "First touch via", "Business hours to first touch",
+  const rows = [["Contact", "Company", "BDR", "MQL Status", "Channel_", "Original source", "Disprz Region", "Assigned (IST)", "First touch (IST)", "First touch via", "Business hours to first touch",
     "Within 1 BH", "Touches", "Calls", "Emails", "Days touched", "Last touch (IST)", "Idle (business days)", "Replied", "Meeting", "Missing data", "HubSpot link"],
-    ...st.contacts.map(c => [c.name, c.company, ownerName(c.owner), c.mql, c.chn, c.src, fmtFull(c.assigned), fmtFull(c.ft), c.ft_ch || "", c.ft_bh ?? "",
+    ...st.contacts.map(c => [c.name, c.company, ownerName(c.owner), c.mql, c.chn, c.src, c.reg, fmtFull(c.assigned), fmtFull(c.ft), c.ft_ch || "", c.ft_bh ?? "",
       yn(c.ft && c.ft_bh <= T), c.t, c.calls, c.emails, c.days, fmtFull(c.last), c.idle_bd ?? "", yn(c.replied), yn(c.meeting), c.unworkable, c.url])];
   if (rows.length < 2) return alertBanner("No contacts match the current filters.");
   downloadCsv("contacts", rows);

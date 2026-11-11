@@ -42,6 +42,8 @@ def _segs(c):
 
 
 def compute(raw):
+    reg_labels = (raw.get("region_labels") or {}).get("contact", {})
+    deal_reg_labels = (raw.get("region_labels") or {}).get("deal", {})
     company_names = raw.get("company_names", {})
     reason_labels = raw.get("reason_labels", {})
 
@@ -71,6 +73,14 @@ def compute(raw):
         c["_assigned"] = parse_ts(c.get("hubspot_owner_assigneddate"))
         c["_touches"], c["_incoming"], c["_meetings"], c["_dispos"] = [], [], [], []
         c["_chn"], c["_src"] = _segs(c)
+        rv = (c.get(C.REGION_PROPERTY) or "").strip()
+        c["_reg"] = reg_labels.get(rv, rv) or C.BLANK_LABEL
+
+    def act_reg(row):
+        for cid in row.get("contact_ids", []):
+            if cid in contacts:
+                return contacts[cid]["_reg"]
+        return C.BLANK_LABEL
 
     def act_segs(row):
         """Channel/source of the first associated contact we know about."""
@@ -110,7 +120,7 @@ def compute(raw):
                         int(call.get("has_notes", False)), int(manual), int(call["_backdated"]), 0,
                         int(call["_valid"]), ts.astimezone(TZ).weekday()] + act_segs(call) + [
                         round(dur / 1000), (call.get("contact_ids") or [""])[0], ist_date(ts).isoformat(),
-                        int(call.get("hs_call_duration") not in (None, "")), 1 if by_talk else 2 if by_notes else 0]
+                        int(call.get("hs_call_duration") not in (None, "")), 1 if by_talk else 2 if by_notes else 0, act_reg(call)]
 
     # duplicate = manual log within N minutes of a tool-logged call to the same contact by the same owner
     win = timedelta(minutes=C.DUPLICATE_CALL_MINUTES)
@@ -153,7 +163,7 @@ def compute(raw):
         internal = _all_internal(em.get("hs_email_to_email"))
         group = len(em.get("contact_ids", [])) > C.GROUP_EMAIL_MAX_CONTACTS
         lt = ts.astimezone(TZ)
-        email_rows.append([owner, _week(ts), int(status == "BOUNCED"), int(group), int(internal), lt.hour, lt.weekday()] + act_segs(em) + [lt.date().isoformat()])
+        email_rows.append([owner, _week(ts), int(status == "BOUNCED"), int(group), int(internal), lt.hour, lt.weekday()] + act_segs(em) + [lt.date().isoformat(), act_reg(em)])
         if status in C.EMAIL_EXCLUDED_STATUSES or internal:
             continue
         for cid in em.get("contact_ids", []):
@@ -196,7 +206,7 @@ def compute(raw):
         rows.append({
             "id": c["id"], "name": _name(c), "url": _url("0-1", c["id"]),
             "owner": str(c["hubspot_owner_id"]), "assigned": a.isoformat(), "week": _week(a),
-            "chn": c["_chn"], "src": c["_src"], "aday": ist_date(a).isoformat(), "company": company_of(c),
+            "chn": c["_chn"], "src": c["_src"], "reg": c["_reg"], "aday": ist_date(a).isoformat(), "company": company_of(c),
             "mql": C.MQL_LABELS.get(mql, mql or "(blank)"),
             "ft": first["ts"].isoformat() if first else None, "ft_ch": first["ch"] if first else None,
             "ft_bh": _r(ft_bh, 2), "ft_raw_h": _r((first["ts"] - a).total_seconds() / 3600, 1) if first else None,
@@ -229,7 +239,7 @@ def compute(raw):
         last = t[-1]["ts"] if t else None
         status_at = parse_ts(c.get("mql_status_update_date"))
         base = {"id": c["id"], "name": _name(c), "url": _url("0-1", c["id"]), "owner": str(c["hubspot_owner_id"]),
-                "chn": c["_chn"], "src": c["_src"], "aday": ist_date(a).isoformat() if a else None,
+                "chn": c["_chn"], "src": c["_src"], "reg": c["_reg"], "aday": ist_date(a).isoformat() if a else None,
                 "company": company_of(c)}
 
         if mql == C.MQL_WORKING:
@@ -279,7 +289,7 @@ def compute(raw):
 
     for c, ts, ch in pre_assignment:
         checks["pre_assignment"].append({"id": c["id"], "name": _name(c), "url": _url("0-1", c["id"]),
-                                         "chn": c["_chn"], "src": c["_src"], "aday": ist_date(c["_assigned"]).isoformat(),
+                                         "chn": c["_chn"], "src": c["_src"], "reg": c["_reg"], "aday": ist_date(c["_assigned"]).isoformat(),
                                          "company": company_of(c),
                                          "owner": str(c["hubspot_owner_id"]), "activity": ts.isoformat(),
                                          "channel": ch, "assigned": c["_assigned"].isoformat()})
@@ -331,6 +341,7 @@ def compute(raw):
             "owner": oid, "owner_name": owner_name(oid) if oid else "(no owner)",
             "demo_date": demo_day.isoformat() if demo_day else None, "status": status or C.BLANK_LABEL,
             "chn": (d.get(C.DEAL_CHANNEL_PROPERTY) or "").strip() or C.BLANK_LABEL,
+            "reg": deal_reg_labels.get((d.get(C.DEAL_REGION_PROPERTY) or "").strip(), (d.get(C.DEAL_REGION_PROPERTY) or "").strip()) or C.BLANK_LABEL,
             "spoc": owner_name(str(d.get(C.DEAL_SPOC_PROPERTY))) if d.get(C.DEAL_SPOC_PROPERTY) else C.BLANK_LABEL,
             "orig": C.ORIGINATION_LABELS.get(orig, orig) or C.BLANK_LABEL,
             "done": done, "done_date": done_day.isoformat() if done_day else None,
@@ -358,7 +369,7 @@ def compute(raw):
         "calls": [x["_row"] for x in call_rows],
         "call_cols": ["owner", "week", "hour", "connected", "convo", "outcome", "notes", "manual",
                       "backdated", "dup", "valid", "dow", "chn", "src",
-                      "dur_s", "contact", "day", "has_dur", "conn_via"],
-        "emails": email_rows, "email_cols": ["owner", "week", "bounced", "group", "internal", "hour", "dow", "chn", "src", "day"],
+                      "dur_s", "contact", "day", "has_dur", "conn_via", "reg"],
+        "emails": email_rows, "email_cols": ["owner", "week", "bounced", "group", "internal", "hour", "dow", "chn", "src", "day", "reg"],
         "checks": checks,
     }

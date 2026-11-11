@@ -81,11 +81,13 @@ SOURCE_LABELS = {  # internal value -> label, where they differ
     "Organic": "Organic Search", "Paid": "Paid Search", "Direct": "Direct Traffic", "Email": "Email Marketing",
     "Disprz LeadGen": "BDR Cold Outreach", "webinars": "Webinars",
 }
+REGION_PROPERTY = "disprz_region"  # Disprz Region (contact)
 BLANK_LABEL = "(blank)"
 
 # Deals tab: funnel metrics
 DEAL_CHANNEL_PROPERTY = "channel_"
 DEAL_ORIGINATION_PROPERTY = "deal_origination__"
+DEAL_REGION_PROPERTY = "deal_region_"  # Deal Region
 ORIGINATION_LABELS = {
     "Organic": "Organic Search", "Paid": "Paid Search", "Direct": "Direct Traffic", "Sales": "Field Sales",
     "Disprz LeadGen": "BDR Cold Outreach", "Email": "Email marketing", "webinars": "Webinars",
