@@ -174,6 +174,11 @@ a:hover { text-decoration: underline; }
 .csvbar { display: flex; justify-content: flex-end; margin: -6px 0 6px; }
 .csvbtn { font-size: 11.5px; padding: 3px 10px; border-radius: 999px; display: inline-flex; align-items: center; gap: 5px; color: var(--ink-2); }
 .csvbtn svg { width: 13px; height: 13px; }
+.idlef { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 0 0 8px; font-size: 13px; color: var(--ink-2); }
+.idlef label { font-weight: 600; }
+.idlef select, .idlef input { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--ring); background: var(--surface); color: var(--ink); }
+.idlef input { width: 80px; }
+.idlef button { font-size: 12px; padding: 4px 10px; }
 .selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 8px; font-size: 13px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 99px; padding: 4px 12px; font-weight: 500; }
 .pill .sw { width: 8px; height: 8px; border-radius: 50%; }
@@ -243,6 +248,12 @@ a:hover { text-decoration: underline; }
     <p class="desc" style="margin-bottom:12px">Records to fix now, by BDR. Darker means more records, shaded within each column. Click a cell to list those records, or a column header for the whole team. These checks show the current state of contacts assigned in the selected date range; pick "All data" to see every open issue. Demo checks live in the Deals tab.</p>
     <div class="hm-scroll"><div id="hm-hyg"></div></div>
     <div class="selbar" id="hyg-sel"></div>
+    <div class="idlef" id="hyg-idle" hidden>
+      <label for="idle-op">Idle (business days)</label>
+      <select id="idle-op" aria-label="Idle comparison"><option value="">Any</option><option value="gt">greater than</option><option value="ge">greater than or equal to</option><option value="eq">equal to</option><option value="le">less than or equal to</option><option value="lt">less than</option></select>
+      <input type="number" id="idle-n" min="0" step="1" placeholder="days" aria-label="Idle business days">
+      <button type="button" id="idle-clear">Clear</button>
+    </div>
     <div class="tablewrap scroll"><table id="t-check"></table></div>
   </div>
 
@@ -789,7 +800,16 @@ const CHECKS = [
   ["pre_assignment", "Touch before assignment", "Pre-assignment", [["name", "Contact"], ["company", "Company"], ["owner", "BDR"], ["channel", "Channel"], ["activity", "Activity", fmtDT], ["assigned", "Assigned", fmtDT]]],
 ];
 let hyg = { check: "working_idle", owner: null };
+const IDLE_CHECKS = new Set(CHECKS.filter(c => c[3].some(col => col[0] === "idle_bd")).map(c => c[0]));
+let idleF = { op: "", n: "" };
+try { idleF = JSON.parse(localStorage.getItem("crmh-idle") || "null") || idleF; } catch (e) {}
+const idleOk = r => { if (!idleF.op || idleF.n === "" || isNaN(+idleF.n)) return true; const v = r.idle_bd, n = +idleF.n; if (v == null) return false;
+  return idleF.op === "gt" ? v > n : idleF.op === "ge" ? v >= n : idleF.op === "lt" ? v < n : idleF.op === "le" ? v <= n : Math.floor(v) === n; };
 function checkRows(key, ownerOk) {
+  const rows = checkRowsRaw(key, ownerOk);
+  return IDLE_CHECKS.has(key) ? rows.filter(idleOk) : rows;
+}
+function checkRowsRaw(key, ownerOk) {
   if (D.checks[key]) return D.checks[key].filter(r => (ownerOk(r.owner) || (!BDR[r.owner] && ownerOk("__other"))) && (r.chn === undefined || SEG(r.chn, r.src, r.reg)) && DATE_OK(r.aday));
   const all = D.contacts.filter(c => ownerOk(c.owner) && SEG(c.chn, c.src, c.reg) && DATE_OK(c.aday));
   if (key === "breaches") return all.filter(c => (c.ft && c.ft_bh > B) || (!c.ft && c.age_bh >= B)).sort((a, b) => (b.ft_bh ?? 1e9) - (a.ft_bh ?? 1e9));
@@ -798,6 +818,14 @@ function checkRows(key, ownerOk) {
   if (key === "unworkable") return all.filter(c => c.unworkable);
   return [];
 }
+function setIdle() {
+  idleF = { op: $("#idle-op").value, n: $("#idle-n").value.trim() };
+  try { localStorage.setItem("crmh-idle", JSON.stringify(idleF)); } catch (e) {}
+  hygieneUI(state());
+}
+$("#idle-op").onchange = setIdle;
+let idleT; $("#idle-n").oninput = () => { clearTimeout(idleT); idleT = setTimeout(setIdle, 250); };
+$("#idle-clear").onclick = () => { $("#idle-op").value = ""; $("#idle-n").value = ""; setIdle(); };
 function hygieneUI(st) {
   const owners = st.bdrs.map(b => ({ id: b.id, label: b.name }));
   if (!st.b && (D.checks.demo_overdue || []).some(r => !BDR[r.owner])) owners.push({ id: "__other", label: "Other owners" });
@@ -818,7 +846,10 @@ function hygieneUI(st) {
   const [, long, , cols] = CHECKS.find(c => c[0] === hyg.check);
   const ownerOk = hyg.owner ? ownerMatch(hyg.owner) : st.ownerOk;
   const list = checkRows(hyg.check, hyg.owner ? ownerOk : (o => st.ownerOk(o) || (!st.b && !BDR[o])));
-  $("#hyg-sel").innerHTML = `<span class="pill"><span class="sw" style="background:${seq("warm", 0.7)}"></span>${long}</span><span class="pill">${hyg.owner ? esc(owners.find(o => o.id === hyg.owner)?.label || "") : "Whole team"}</span><span style="color:var(--muted)">${list.length} record${list.length === 1 ? "" : "s"}</span>`;
+  $("#hyg-idle").hidden = !IDLE_CHECKS.has(hyg.check);
+  $("#idle-op").value = idleF.op; if (document.activeElement !== $("#idle-n")) $("#idle-n").value = idleF.n;
+  const idleTxt = IDLE_CHECKS.has(hyg.check) && idleF.op && idleF.n !== "" ? `<span class="pill">Idle ${$("#idle-op").selectedOptions[0].text} ${esc(idleF.n)}</span>` : "";
+  $("#hyg-sel").innerHTML = `<span class="pill"><span class="sw" style="background:${seq("warm", 0.7)}"></span>${long}</span><span class="pill">${hyg.owner ? esc(owners.find(o => o.id === hyg.owner)?.label || "") : "Whole team"}</span>${idleTxt}<span style="color:var(--muted)">${list.length} record${list.length === 1 ? "" : "s"}</span>`;
   if (!list.length) { $("#t-check").innerHTML = `<tbody><tr><td class="empty-msg">Nothing to fix here.</td></tr></tbody>`; return; }
   $("#t-check").innerHTML = `<thead><tr>${cols.map(([, l, , n]) => `<th class="${n ? "num" : ""}">${l}</th>`).join("")}</tr></thead><tbody>${
     list.map(r => `<tr>${cols.map(([k, , f, n]) => {
