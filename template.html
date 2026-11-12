@@ -179,6 +179,10 @@ a:hover { text-decoration: underline; }
 .idlef select, .idlef input { font: inherit; font-size: 13px; padding: 5px 8px; border-radius: 8px; border: 1px solid var(--ring); background: var(--surface); color: var(--ink); }
 .idlef input { width: 80px; }
 .idlef button { font-size: 12px; padding: 4px 10px; }
+th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+th.sortable:hover { color: var(--ink); }
+th.sortable .arr { display: inline-block; margin-left: 4px; font-size: 11px; opacity: .35; }
+th.sortable.on .arr { opacity: 1; color: var(--accent); }
 .selbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: 16px 0 8px; font-size: 13px; }
 .pill { display: inline-flex; align-items: center; gap: 6px; background: var(--chip); border-radius: 99px; padding: 4px 12px; font-weight: 500; }
 .pill .sw { width: 8px; height: 8px; border-radius: 50%; }
@@ -854,7 +858,7 @@ function hygieneUI(st) {
   $("#t-check").innerHTML = `<thead><tr>${cols.map(([, l, , n]) => `<th class="${n ? "num" : ""}">${l}</th>`).join("")}</tr></thead><tbody>${
     list.map(r => `<tr>${cols.map(([k, , f, n]) => {
       const v = k === "name" ? `<a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a>` : k === "owner" ? esc(ownerName(r.owner)) : k === "owner_name" ? esc(BDR[r.owner] ? ownerName(r.owner) : r.owner_name) : esc(f ? f(r[k]) : (r[k] ?? "—"));
-      return `<td class="${n ? "num" : ""}">${v}</td>`; }).join("")}</tr>`).join("")}</tbody>`;
+      return `<td class="${n ? "num" : ""}"${f || n ? ` data-v="${esc(r[k] ?? "")}"` : ""}>${v}</td>`; }).join("")}</tr>`).join("")}</tbody>`;
 }
 
 
@@ -915,7 +919,7 @@ function dqsRender(st) {
   const clr = $("#dqs-clear"); if (clr) clr.onclick = () => { dqs.owner = null; dqsRender(state()); };
   const missing = r => [r.touches < MT ? `${MT - r.touches} more touch${MT - r.touches === 1 ? "" : "es"}` : "", r.days < MD ? `${MD - r.days} more day${MD - r.days === 1 ? "" : "s"}` : "", r.calls < MC ? "a call" : ""].filter(Boolean).join(", ");
   $("#t-dqs").innerHTML = list.length ? `<thead><tr><th>Contact</th><th>Company</th><th>BDR</th><th>Status</th><th>Reason</th><th>Status set</th><th class="num">Business days worked</th><th class="num">Touches</th><th class="num">Calls</th><th class="num">Emails</th><th class="num">Days</th><th>Short of</th></tr></thead><tbody>${
-    list.map(r => `<tr><td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></td><td>${esc(r.company || "—")}</td><td>${esc(ownerName(r.owner))}</td><td>${esc(r.status)}</td><td>${r.reason ? esc(r.reason) : '<span style="color:var(--muted)">Not set</span>'}</td><td>${fmtDT(r.changed)}</td><td class="num">${num(r.bd)}</td><td class="num">${r.touches}</td><td class="num">${r.calls}</td><td class="num">${r.emails}</td><td class="num">${r.days}</td><td><span class="badge b-critical">${missing(r)}</span></td></tr>`).join("")}</tbody>`
+    list.map(r => `<tr><td><a href="${esc(r.url)}" target="_blank" rel="noopener">${esc(r.name)}</a></td><td>${esc(r.company || "—")}</td><td>${esc(ownerName(r.owner))}</td><td>${esc(r.status)}</td><td>${r.reason ? esc(r.reason) : '<span style="color:var(--muted)">Not set</span>'}</td><td data-v="${esc(r.changed)}">${fmtDT(r.changed)}</td><td class="num" data-v="${r.bd ?? ""}">${num(r.bd)}</td><td class="num">${r.touches}</td><td class="num">${r.calls}</td><td class="num">${r.emails}</td><td class="num">${r.days}</td><td><span class="badge b-critical">${missing(r)}</span></td></tr>`).join("")}</tbody>`
     : `<tbody><tr><td class="empty-msg">Every contact closed out with this status was adequately worked.</td></tr></tbody>`;
 }
 
@@ -1240,7 +1244,7 @@ function renderDeals(st) {
   const statusBadge = d => `<span class="badge ${d.status === "Scheduled" ? (d.overdue ? "b-critical" : "b-warn") : d.status === "(blank)" ? "" : "b-good"}">${esc(d.status === "(blank)" ? "Not set" : d.status)}</span>`;
   const flag = d => d.overdue ? `<span class="badge b-critical">Not updated</span>` : d.past ? "Updated" : "Upcoming";
   $("#t-deals").innerHTML = list.length ? `<thead><tr><th>Deal</th><th>Demo Status</th><th>Deal owner</th><th>BD SPOC</th><th>Proposed demo date</th><th class="num">Days since demo</th><th>Update check</th><th>Stage</th><th class="num">Amount</th></tr></thead><tbody>${
-    list.map(d => `<tr><td><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a></td><td>${statusBadge(d)}</td><td>${esc(d.owner_name)}</td><td>${esc(d.spoc)}</td><td>${fmtD(d.demo_date + "T12:00:00+05:30")}</td><td class="num">${d.past ? Math.floor(daysSince(d)) : "—"}</td><td>${flag(d)}</td><td>${esc(d.stage)}</td><td class="num">${money(d.amount)}</td></tr>`).join("")}</tbody>`
+    list.map(d => `<tr><td><a href="${esc(d.url)}" target="_blank" rel="noopener">${esc(d.name)}</a></td><td>${statusBadge(d)}</td><td>${esc(d.owner_name)}</td><td>${esc(d.spoc)}</td><td data-v="${esc(d.demo_date || "")}">${fmtD(d.demo_date + "T12:00:00+05:30")}</td><td class="num">${d.past ? Math.floor(daysSince(d)) : "—"}</td><td>${flag(d)}</td><td>${esc(d.stage)}</td><td class="num" data-v="${d.amount ?? ""}">${money(d.amount)}</td></tr>`).join("")}</tbody>`
     : `<tbody><tr><td class="empty-msg">Nothing here for this selection.</td></tr></tbody>`;
 
   // status donut
@@ -1283,6 +1287,34 @@ function render() {
   activityHeat(st);
   dqHeat(st);
 }
+// ---------- click-to-sort list tables ----------
+const SORT = {};
+try { Object.assign(SORT, JSON.parse(localStorage.getItem("crmh-sort") || "{}")); } catch (e) {}
+function cellVal(td) {
+  const raw = td.dataset.v !== undefined ? td.dataset.v : td.textContent.trim();
+  if (raw === "" || raw === "—" || raw === "Not set") return null;
+  const x = +String(raw).replace(/[$,%\s]/g, ""); return isNaN(x) ? String(raw).toLowerCase() : x;
+}
+function applySort(t) {
+  const ths = [...t.querySelectorAll("thead th")], body = t.tBodies[0]; if (!ths.length || !body) return;
+  const key = t.id === "t-check" ? "t-check:" + hyg.check : t.id, st = SORT[key];
+  ths.forEach((th, i) => {
+    th.classList.add("sortable"); th.classList.toggle("on", !!st && st.col === i);
+    if (!th.querySelector(".arr")) th.insertAdjacentHTML("beforeend", '<span class="arr"></span>');
+    th.querySelector(".arr").textContent = st && st.col === i ? (st.dir > 0 ? "▲" : "▼") : "↕";
+    th.title = "Click to sort";
+    th.onclick = () => { SORT[key] = st && st.col === i ? { col: i, dir: -st.dir } : { col: i, dir: 1 };
+      try { localStorage.setItem("crmh-sort", JSON.stringify(SORT)); } catch (e) {} applySort(t); };
+  });
+  if (!st || st.col >= ths.length) return;
+  const rows = [...body.rows];
+  rows.sort((a, b) => { const x = cellVal(a.cells[st.col]), y = cellVal(b.cells[st.col]);
+    if (x === null && y === null) return 0; if (x === null) return 1; if (y === null) return -1;
+    return (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, { numeric: true })) * st.dir; });
+  rows.forEach(r => body.appendChild(r));
+}
+["#t-check", "#t-dqs", "#t-deals"].forEach(id => { const t = $(id); new MutationObserver(() => applySort(t)).observe(t, { childList: true }); });
+
 // ---------- CSV export (always reflects the filters on screen) ----------
 const DL_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg>';
 const csvCell = v => { v = v == null ? "" : String(v).replace(/\s+/g, " ").trim(); if (v === "—") v = "";
@@ -1298,8 +1330,10 @@ function downloadCsv(name, rows) {
 function tableRows(t) {
   const trs = [...t.querySelectorAll("tr")]; if (!trs.length || t.querySelector(".empty-msg")) return [];
   const links = trs.some(tr => tr.querySelector("a[href]"));
-  return trs.map((tr, i) => { const cells = [...tr.children].map(td => td.textContent);
-    if (links) cells.push(i === 0 && tr.closest("thead") ? "HubSpot link" : (tr.querySelector("a[href]")?.href || "")); return cells; });
+  return trs.map((tr, i) => { const cells = [...tr.children].map(td => td.textContent.replace(/[▲▼↕]$/, ""));
+    if (links) { const href = tr.querySelector("a[href]")?.href || "", id = (href.match(/\/record\/[^/]+\/(\d+)/) || [])[1] || "";
+      if (i === 0 && tr.closest("thead")) cells.unshift("Record ID"), cells.push("HubSpot link"); else cells.unshift(id), cells.push(href); }
+    return cells; });
 }
 function heatRows(el) {
   const hm = el.querySelector(".hm"); if (!hm) return [];
@@ -1323,6 +1357,7 @@ function exportTitle(el) {
   const h3 = [...(card ? card.querySelectorAll("h3") : [])].filter(h => h.compareDocumentPosition(el) & Node.DOCUMENT_POSITION_FOLLOWING).pop();
   let sec = card; while (sec && !(sec.classList && sec.classList.contains("sec"))) sec = sec.previousElementSibling || sec.parentElement?.previousElementSibling;
   let t = h3 ? h3.textContent : (sec ? sec.textContent : "export");
+  if (el.querySelector("#t-dqs")) t = $("#dq-title").textContent;
   if (el.querySelector("#t-check")) t = [...document.querySelectorAll("#hyg-sel .pill")].map(x => x.textContent).join(" - ") || t;
   return t;
 }
@@ -1347,16 +1382,16 @@ $("#f-export").onclick = () => {
   if (VIEW === "deals") {
     const m = new Map(); [...st.deals, ...st.dealsDone, ...st.dealsSqo].forEach(d => m.set(d.id, d));
     const sch = new Set(st.deals.map(d => d.id)), dn = new Set(st.dealsDone.map(d => d.id)), sq = new Set(st.dealsSqo.map(d => d.id));
-    const rows = [["Deal", "Deal owner", "BD SPOC", "Deal channel", "Deal origination", "Deal Region", "Demo Status", "Stage", "Pipeline", "Proposed demo date", "Demo done date", "SQO date",
+    const rows = [["Record ID", "Deal", "Deal owner", "BD SPOC", "Deal channel", "Deal origination", "Deal Region", "Demo Status", "Stage", "Pipeline", "Proposed demo date", "Demo done date", "SQO date",
       "Scheduled in range", "Done in range", "SQO in range", `Value (${CUR})`, "Demo done but not updated", "HubSpot link"],
-      ...[...m.values()].map(d => [d.name, d.owner_name, d.spoc, d.chn, d.orig, d.reg, d.status, d.stage, d.pipeline, d.demo_date, d.done_date, d.sqo_date,
+      ...[...m.values()].map(d => [d.id, d.name, d.owner_name, d.spoc, d.chn, d.orig, d.reg, d.status, d.stage, d.pipeline, d.demo_date, d.done_date, d.sqo_date,
         yn(sch.has(d.id)), yn(dn.has(d.id)), yn(sq.has(d.id)), d.sqo ? d.value : "", yn(d.overdue), d.url])];
     if (rows.length < 2) return alertBanner("No deals match the current filters.");
     return downloadCsv("deals", rows);
   }
-  const rows = [["Contact", "Company", "BDR", "MQL Status", "Channel_", "Original source", "Disprz Region", "Assigned (IST)", "First touch (IST)", "First touch via", "Business hours to first touch",
+  const rows = [["Record ID", "Contact", "Company", "BDR", "MQL Status", "Channel_", "Original source", "Disprz Region", "Assigned (IST)", "First touch (IST)", "First touch via", "Business hours to first touch",
     "Within 1 BH", "Touches", "Calls", "Emails", "Days touched", "Last touch (IST)", "Idle (business days)", "Replied", "Meeting", "Missing data", "HubSpot link"],
-    ...st.contacts.map(c => [c.name, c.company, ownerName(c.owner), c.mql, c.chn, c.src, c.reg, fmtFull(c.assigned), fmtFull(c.ft), c.ft_ch || "", c.ft_bh ?? "",
+    ...st.contacts.map(c => [c.id, c.name, c.company, ownerName(c.owner), c.mql, c.chn, c.src, c.reg, fmtFull(c.assigned), fmtFull(c.ft), c.ft_ch || "", c.ft_bh ?? "",
       yn(c.ft && c.ft_bh <= T), c.t, c.calls, c.emails, c.days, fmtFull(c.last), c.idle_bd ?? "", yn(c.replied), yn(c.meeting), c.unworkable, c.url])];
   if (rows.length < 2) return alertBanner("No contacts match the current filters.");
   downloadCsv("contacts", rows);
